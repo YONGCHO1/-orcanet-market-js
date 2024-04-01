@@ -11,6 +11,8 @@ import { mdns } from '@libp2p/mdns'
 import { multiaddr } from '@multiformats/multiaddr'
  
 
+const bootstrapPeers = [];
+
 const makeNode = async () => {
     const nodes = await createLibp2p({
         addresses: {
@@ -29,29 +31,30 @@ const makeNode = async () => {
     });
 
 
-    // Add event listener to the node
-    nodes.addEventListener('peer:connect', (peerInfo) => {
-        console.log(`A Peer Connected with us!`);
-    });
+   // Add event listener to the node
+   nodes.addEventListener('peer:connect', (event) => {
+    const peerInfo = event.detail;
+    console.log('A Peer ID ' + peerInfo + ' Connected with us!');
+});
     
     await nodes.start();
     return nodes;
 }
 
-var PROTO_PATH = './market.proto';
+// var PROTO_PATH = './market.proto';
 
-var grpc = require('@grpc/grpc-js');
-var protoLoader = require('@grpc/proto-loader');
-var packageDefinition = protoLoader.loadSync(
-    PROTO_PATH,
-    {
-        keepCase: true,
-        longs: String,
-        enums: String,
-        defaults: true,
-        oneofs: true
-    });
-var market_proto = grpc.loadPackageDefinition(packageDefinition).market;
+// var grpc = require('@grpc/grpc-js');
+// var protoLoader = require('@grpc/proto-loader');
+// var packageDefinition = protoLoader.loadSync(
+//     PROTO_PATH,
+//     {
+//         keepCase: true,
+//         longs: String,
+//         enums: String,
+//         defaults: true,
+//         oneofs: true
+//     });
+// var market_proto = grpc.loadPackageDefinition(packageDefinition).market;
 
  // Importing the built-in 'readline' module
   const readline = require('readline');
@@ -135,11 +138,11 @@ function checkProvider(node, cid) {
     });
 }
 
-const server = new grpc.Server();
-server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
-server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), () => {
-    server.start();
-});  
+// const server = new grpc.Server();
+// server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
+// server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), () => {
+//     server.start();
+// });  
 
   greet();
 
@@ -199,6 +202,26 @@ function printNodeInfo(node){
 function connect(node){
     rl.question('Enter address of node you want to connect to\n', async (input) => {
         //TODO: when address is entered dial that address and if it works say it was successful
+
+        bootstrapPeers.push(input);
+
+        const bootstrapAddresses = await Promise.all(bootstrapPeers.map(async (addr) => {
+            console.log("get into bootstrap function");
+            try {
+                console.log("get into try");
+                console.log(addr);
+                const peerAddr = multiaddr(addr);
+                const peerInfo = await node.dial(peerAddr, {
+                    signal: AbortSignal.timeout(10_000)
+                });
+
+                console.log('Connected to bootstrap peer:', peerAddr.getPeerId()); //peerInfo.id.toString());
+                return peerInfo;
+            } catch (error) {
+                console.error('Failed to connect to bootstrap peer:', error);
+                return null;
+            }
+        }));
         options(node);
         });
 }
@@ -206,8 +229,8 @@ function connect(node){
 function add(node){
     rl.question('Enter file that you want to add to the network\n', async (input) => {
         //TODO: have user input info to add file and use proto and grpc to add the file like we did in centralized i guess?
-        var client = new market_proto.Market(target, grpc.credentials.createInsecure());
-        
+        // var client = new market_proto.Market(target, grpc.credentials.createInsecure());
+
         options(node);
         });
 }
