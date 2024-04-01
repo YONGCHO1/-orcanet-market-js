@@ -11,7 +11,7 @@ import { mdns } from '@libp2p/mdns'
 import { multiaddr } from '@multiformats/multiaddr'
  
 
-const bootstrapPeers = [];
+const bootstrapPeers = ['/ip4/192.168.1.166/tcp/52074/p2p/12D3KooWAkjzMKsmU1r4KxPk8ersST2fKcEiRFRFaYxUsnzYJmMa'];
 
 const makeNode = async () => {
     const nodes = await createLibp2p({
@@ -21,8 +21,10 @@ const makeNode = async () => {
         transports: [tcp()],
         streamMuxers: [mplex()],
         connectionEncryption: [noise()],
-        peerDiscovery: [mdns()],
-        // peerDiscovery: [bootstrap()],
+        // peerDiscovery: [mdns()],
+        peerDiscovery: [bootstrap({
+            list: bootstrapPeers
+        })],
         services: {
             kadDHT: kadDHT({
                 kBucketSize: 20
@@ -35,7 +37,15 @@ const makeNode = async () => {
    nodes.addEventListener('peer:connect', (event) => {
     const peerInfo = event.detail;
     console.log('A Peer ID ' + peerInfo + ' Connected with us!');
-});
+    });
+
+
+    nodes.addEventListener('peer:discovery', (evt) => {
+        console.log('Discovered %s', evt.detail.id.toString()) // Log discovered peer
+    });
+
+
+
     
     await nodes.start();
     return nodes;
@@ -203,9 +213,20 @@ function connect(node){
     rl.question('Enter address of node you want to connect to\n', async (input) => {
         //TODO: when address is entered dial that address and if it works say it was successful
 
-        bootstrapPeers.push(input);
+        const peers = [];
+        
+        peers.push(input);
 
-        const bootstrapAddresses = await Promise.all(bootstrapPeers.map(async (addr) => {
+
+        // try {
+        //     const peer = await node.peerRouting.findPeer(input);
+        //     console.log('Found peer:', peer);
+        //     console.log('Addresses:', peer.addresses.map(addr => addr.toString()));
+        //   } catch (err) {
+        //     console.error('Error finding peer:', err);
+        //   }
+
+        const bootstrapAddresses = await Promise.all(peers.map(async (addr) => {
             console.log("get into bootstrap function");
             try {
                 console.log("get into try");
