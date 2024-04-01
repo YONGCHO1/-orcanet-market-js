@@ -38,6 +38,21 @@ const makeNode = async () => {
     return nodes;
 }
 
+var PROTO_PATH = './market.proto';
+
+var grpc = require('@grpc/grpc-js');
+var protoLoader = require('@grpc/proto-loader');
+var packageDefinition = protoLoader.loadSync(
+    PROTO_PATH,
+    {
+        keepCase: true,
+        longs: String,
+        enums: String,
+        defaults: true,
+        oneofs: true
+    });
+var market_proto = grpc.loadPackageDefinition(packageDefinition).market;
+
  // Importing the built-in 'readline' module
   const readline = require('readline');
 
@@ -46,6 +61,85 @@ const makeNode = async () => {
       input: process.stdin,
       output: process.stdout
   });
+
+  // This function registers a file and user into the servers HashMap 
+function registerFile(call, callback) {
+    let newUser = call.request.user;
+    let cid = call.request.fileHash;
+    console.log("------------------register file---------------------");
+    let multi = [];
+    multi.push(newUser);
+  
+    putOrUpdateKeyValue(node, cid, multi);
+    callback(null, {});
+}
+
+// Put or update values to corresponding key
+function putOrUpdateKeyValue(node, cid, value) {
+    node.contentRouting.get(cid, (err, existingValue) => {
+        // The key(CID) doesn't exist in DHT node
+        if (err) {
+            console.log('First time to register the file');
+            node.contentRouting.put(cid, value, (err) => {
+                if (err) {
+                console.error('Error registering value:', err);
+                } 
+                else {
+                console.log('Value uploaded successfully for key', cid);
+                }
+            })
+        } 
+
+        // The key(CID) exists in DHT node
+        else {
+          // Update existing value with new value (might be needed to change to add with existing value)
+          const updatedValue = Array.isArray(existingValue) ? [...existingValue, ...value] : [existingValue, ...value];
+          node.contentRouting.put(cid, updatedValue, (err) => {
+            if (err) {
+              console.error('Error updating value:', err);
+            } 
+            else {
+              console.log('Value updated successfully for key', cid);
+            }
+          });
+        }
+    });
+}
+
+// CheckHolders should take a fileHash and looks it up in the hashmap and returns the list of users
+function checkHolders(call, callback) {
+    console.log("------------------check holders----------------------");
+    const cid = call.request.fileHash;
+    // const user = userFileMap.get(fileHash);
+
+    const holders = checkProvider(node, cid) 
+  
+    console.log("Users Found");
+    // printHolders(holders);
+    callback(null, {holders: holders});
+}
+
+// Check provider based on provided key
+function checkProvider(node, cid) {
+    node.contentRouting.get(cid, (err, existingValue) => {
+        // The key(CID) doesn't exist in DHT node
+        if (err) {
+            console.error('Error retrieving existing value:', err);
+            return;
+        } 
+
+        // The key(CID) exists in DHT node
+        else {
+          return existingValue;
+        }
+    });
+}
+
+const server = new grpc.Server();
+server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
+server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), () => {
+    server.start();
+});  
 
   greet();
 
@@ -82,6 +176,7 @@ function options(node){
             add(node);
         }else if(input == "exit"){
             console.log("Leaving Network");
+            await node.stop();
             rl.close();
         }
         else{
@@ -111,6 +206,8 @@ function connect(node){
 function add(node){
     rl.question('Enter file that you want to add to the network\n', async (input) => {
         //TODO: have user input info to add file and use proto and grpc to add the file like we did in centralized i guess?
+        var client = new market_proto.Market(target, grpc.credentials.createInsecure());
+        
         options(node);
         });
 }
