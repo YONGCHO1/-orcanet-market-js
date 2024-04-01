@@ -11,7 +11,7 @@ import { mdns } from '@libp2p/mdns'
 import { multiaddr } from '@multiformats/multiaddr'
  
 
-const bootstrapPeers = ['/ip4/192.168.1.166/tcp/52074/p2p/12D3KooWAkjzMKsmU1r4KxPk8ersST2fKcEiRFRFaYxUsnzYJmMa'];
+const bootstrapPeers = [];
 
 const makeNode = async () => {
     const nodes = await createLibp2p({
@@ -21,10 +21,10 @@ const makeNode = async () => {
         transports: [tcp()],
         streamMuxers: [mplex()],
         connectionEncryption: [noise()],
-        // peerDiscovery: [mdns()],
-        peerDiscovery: [bootstrap({
-            list: bootstrapPeers
-        })],
+        peerDiscovery: [mdns()],
+        // peerDiscovery: [bootstrap({
+        //     list: bootstrapPeers
+        // })],
         services: {
             kadDHT: kadDHT({
                 kBucketSize: 20
@@ -166,7 +166,7 @@ function getTarget(node){
 
     const multiaddresses = node.getMultiaddrs();
     multiaddresses.forEach(addr => {
-        console.log(addr.toString());
+        // console.log(addr.toString());
         let addrs = addr.toString();
         let addr_info = addrs.split('/');
         my_ip = addr_info[2];
@@ -202,7 +202,7 @@ function getTarget(node){
                     // server.start();
                 }); 
 
-                console.log(`Target is: ${target}`);
+                // console.log(`Target is: ${target}`);
 
                 console.log("Joined Network");
                 // printNodeInfo(node);
@@ -252,9 +252,9 @@ function connect(node, target){
     rl.question('Enter address of node you want to connect to\n', async (input) => {
         //TODO: when address is entered dial that address and if it works say it was successful
 
-        const peers = [];
+        // const peers = [];
         
-        peers.push(input);
+        bootstrapPeers.push(input);
 
 
         // try {
@@ -265,11 +265,11 @@ function connect(node, target){
         //     console.error('Error finding peer:', err);
         //   }
 
-        const bootstrapAddresses = await Promise.all(peers.map(async (addr) => {
-            console.log("get into bootstrap function");
+        const bootstrapAddresses = await Promise.all(bootstrapPeers.map(async (addr) => {
+            // console.log("get into bootstrap function");
             try {
-                console.log("get into try");
-                console.log(addr);
+                // console.log("get into try");
+                // console.log(addr);
                 const peerAddr = multiaddr(addr);
                 const peerInfo = await node.dial(peerAddr, {
                     signal: AbortSignal.timeout(10_000)
@@ -291,12 +291,29 @@ function add(node, target){
         //TODO: have user input info to add file and use proto and grpc to add the file like we did in centralized i guess?
         var client = new market_proto.Market(target, grpc.credentials.createInsecure());
 
+        // console.log(`input value is ${input}`);
+
+        let input_values = input.split(' ');
+        console.log(input_values[0]);
+        
+        let my_ip;
+        let my_port;
+
+        const multiaddresses = node.getMultiaddrs();
+        multiaddresses.forEach(addr => {
+            console.log(addr.toString());
+            let addrs = addr.toString();
+            let addr_info = addrs.split('/');
+            my_ip = addr_info[2];
+            my_port = addr_info[4];
+        });
+
         var newUser = {
-            id: 1, // will be replaced by id given from Peer Node team
-            name: "hello",
-            ip: "ip",
-            port: 1234,
-            price: 123,
+            id: node.peerId, // will be replaced by id given from Peer Node team
+            name: input_values[1],
+            ip: my_ip,
+            port: my_port,
+            price: input_values[2],
             }
     
             // console.log(newUser);
@@ -308,7 +325,7 @@ function add(node, target){
             // });
 
             // Encode the key
-            const keyEncoded = new TextEncoder().encode(input)
+            const keyEncoded = new TextEncoder().encode(input_values[0])
             const userInfo = `${newUser.id},${newUser.name},${newUser.ip},${newUser.port},${newUser.price}`;
             // console.log(userInfo);
             // Encode the userInfo as the value to be put in
