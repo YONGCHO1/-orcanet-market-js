@@ -18,8 +18,8 @@
    "add": adds a file to the network
    "exit": exit the network
    ```
- 3-1. info
-    Users can check their multiaddresses and PID
+3-1. info
+   Users can check their multiaddresses and PID
     ```
     ------------------------------------------------------------------------------------------------------------------------------
     My Node Info:
@@ -29,7 +29,7 @@
     /ip4/10.1.191.22/tcp/58275/p2p/12D3KooWMmQFkHeJX7Lu5dqa8EjbzMfejdENvz7hcJv57hvcwUp8
     ------------------------------------------------------------------------------------------------------------------------------
     ```
- 3-2. connect
+3-2. connect
     ```
     Enter address of node you want to connect to
     ```
@@ -42,12 +42,12 @@
     ex) /ip4/10.1.191.22/tcp/58336/p2p/12D3KooWBaBBdT7cCGN2Ys3FBcYqf3CnMA5rgHhFradXNtNP8zFc
     Connected to bootstrap peer: 12D3KooWBaBBdT7cCGN2Ys3FBcYqf3CnMA5rgHhFradXNtNP8zFc
     ```
- 3-3. add
+3-3. add
     ```
     Enter file that you want to add to the network
     [File hash(CID)] [User Name] [Price per MB]
     ```
- 3-4. exit
+3-4. exit
     ```
     Leaving Network
     ```
