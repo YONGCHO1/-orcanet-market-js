@@ -70,6 +70,12 @@ async function main() {
                 bootstrapPeers.push(argv[1]);
             break;
         case '-clientMode':
+            if (argv.length === 5) {
+
+            }
+            else {
+                console.log("You should put right name, IP, port, and price. Please check carefully.");
+            }
 
     }
 
