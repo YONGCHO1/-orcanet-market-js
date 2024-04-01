@@ -34,37 +34,43 @@ const makeNode = async () => {
 
 
    // Add event listener to the node
-   nodes.addEventListener('peer:connect', (event) => {
-    const peerInfo = event.detail;
-    console.log('A Peer ID ' + peerInfo + ' Connected with us!');
+    nodes.addEventListener('peer:connect', (event) => {
+        const peerInfo = event.detail;
+        console.log('A Peer ID ' + peerInfo + ' Connected with us!');
+        });
+
+
+    // Event listener for peer discovery
+       nodes.addEventListener('peer:discovery', (event) => {
+        const peerId = event.detail.id.toString();
+        console.log(`Discovered: ${peerId}`);
+
+        // Attempt to connect to the discovered peer
+        // nodes.dial(event.detail).then(() => {
+        //     console.log(`Connected to ${peerId}`);
+        // }).catch((err) => {
+        //     console.error(`Failed to connect to ${peerId}: ${err.message}`);
+        // });
     });
 
-
-    nodes.addEventListener('peer:discovery', (evt) => {
-        console.log('Discovered %s', evt.detail.id.toString()) // Log discovered peer
-    });
-
-
-
-    
     await nodes.start();
     return nodes;
 }
 
-// var PROTO_PATH = './market.proto';
+var PROTO_PATH = './market.proto';
 
-// var grpc = require('@grpc/grpc-js');
-// var protoLoader = require('@grpc/proto-loader');
-// var packageDefinition = protoLoader.loadSync(
-//     PROTO_PATH,
-//     {
-//         keepCase: true,
-//         longs: String,
-//         enums: String,
-//         defaults: true,
-//         oneofs: true
-//     });
-// var market_proto = grpc.loadPackageDefinition(packageDefinition).market;
+var grpc = require('@grpc/grpc-js');
+var protoLoader = require('@grpc/proto-loader');
+var packageDefinition = protoLoader.loadSync(
+    PROTO_PATH,
+    {
+        keepCase: true,
+        longs: String,
+        enums: String,
+        defaults: true,
+        oneofs: true
+    });
+var market_proto = grpc.loadPackageDefinition(packageDefinition).market;
 
  // Importing the built-in 'readline' module
   const readline = require('readline');
@@ -82,41 +88,47 @@ function registerFile(call, callback) {
     console.log("------------------register file---------------------");
     let multi = [];
     multi.push(newUser);
+
+    console.log(`New User: ${newUser}`);
+    console.log(`CID: ${cid}`);
   
     putOrUpdateKeyValue(node, cid, multi);
     callback(null, {});
 }
 
 // Put or update values to corresponding key
-function putOrUpdateKeyValue(node, cid, value) {
-    node.contentRouting.get(cid, (err, existingValue) => {
-        // The key(CID) doesn't exist in DHT node
-        if (err) {
-            console.log('First time to register the file');
-            node.contentRouting.put(cid, value, (err) => {
-                if (err) {
-                console.error('Error registering value:', err);
-                } 
-                else {
-                console.log('Value uploaded successfully for key', cid);
-                }
-            })
-        } 
+async function putOrUpdateKeyValue(node, cid, value) {
+    const valueArr = new Uint8Array([value]);
+    const cidArr = new Uint8Array([cid]);
+
+    // await node.contentRouting.get(cidArr, async (err, existingValue) => {
+    //     // The key(CID) doesn't exist in DHT node
+    //     if (err) {
+    //         console.log('First time to register the file');
+            // node.contentRouting.put(cidArr, valueArr, (err) => {
+            //     if (err) {
+            //     console.error('Error registering value:', err);
+            //     } 
+            //     else {
+            //     console.log('Value uploaded successfully for key', cid);
+            //     }
+            // })
+        // } 
 
         // The key(CID) exists in DHT node
-        else {
+        // else {
           // Update existing value with new value (might be needed to change to add with existing value)
-          const updatedValue = Array.isArray(existingValue) ? [...existingValue, ...value] : [existingValue, ...value];
-          node.contentRouting.put(cid, updatedValue, (err) => {
-            if (err) {
-              console.error('Error updating value:', err);
-            } 
-            else {
-              console.log('Value updated successfully for key', cid);
-            }
-          });
-        }
-    });
+        //   const updatedValue = Array.isArray(existingValue) ? [...existingValue, ...value] : [existingValue, ...value];
+        //   await node.contentRouting.put(cidArr, updatedValue, (err) => {
+        //     if (err) {
+        //       console.error('Error updating value:', err);
+        //     } 
+        //     else {
+        //       console.log('Value updated successfully for key', cid);
+        //     }
+        //   });
+        // }
+    // });
 }
 
 // CheckHolders should take a fileHash and looks it up in the hashmap and returns the list of users
@@ -148,6 +160,23 @@ function checkProvider(node, cid) {
     });
 }
 
+function getTarget(node){
+    let my_ip
+    let my_port
+
+    const multiaddresses = node.getMultiaddrs();
+    multiaddresses.forEach(addr => {
+        console.log(addr.toString());
+        let addrs = addr.toString();
+        let addr_info = addrs.split('/');
+        my_ip = addr_info[2];
+        my_port = addr_info[4];
+    });
+
+    let target =  my_ip + ":" + my_port;
+    return target;
+}
+
 // const server = new grpc.Server();
 // server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
 // server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), () => {
@@ -165,9 +194,19 @@ function checkProvider(node, cid) {
             if(input == "start"){
             // Create new node and start it
                 const node = await makeNode();
+                let target = getTarget(node);
+
+                const server = new grpc.Server();
+                server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
+                server.bindAsync(target, grpc.ServerCredentials.createInsecure(), () => {
+                    // server.start();
+                }); 
+
+                console.log(`Target is: ${target}`);
+
                 console.log("Joined Network");
                 // printNodeInfo(node);
-                options(node);
+                options(node, target);
                 // rl.close();
             } else{
                 console.log("Invalid Input: Try again!");
@@ -178,15 +217,15 @@ function checkProvider(node, cid) {
         });
 }
 
-function options(node){
+function options(node, target){
     rl.question('Available options for user in Network:\n"info": displays node information\n"connect": connect to another node in the network\n"add": adds a file to the network\n"exit": exit the network\n', async (input) => {
         if(input == "info"){
             printNodeInfo(node);
-            options();
+            options(node, target);
         } else if(input == "connect"){
-            connect(node);
+            connect(node, target);
         }else if(input == "add"){
-            add(node);
+            add(node, target);
         }else if(input == "exit"){
             console.log("Leaving Network");
             await node.stop();
@@ -194,7 +233,7 @@ function options(node){
         }
         else{
             console.log("Invalid Input: Try again!");
-            options(node);
+            options(node, target);
         }
     });
 }
@@ -209,7 +248,7 @@ function printNodeInfo(node){
     console.log("------------------------------------------------------------------------------------------------------------------------------")
 }
 
-function connect(node){
+function connect(node, target){
     rl.question('Enter address of node you want to connect to\n', async (input) => {
         //TODO: when address is entered dial that address and if it works say it was successful
 
@@ -243,16 +282,33 @@ function connect(node){
                 return null;
             }
         }));
-        options(node);
+        options(node, target);
         });
 }
 
-function add(node){
+function add(node, target){
     rl.question('Enter file that you want to add to the network\n', async (input) => {
         //TODO: have user input info to add file and use proto and grpc to add the file like we did in centralized i guess?
-        // var client = new market_proto.Market(target, grpc.credentials.createInsecure());
+        var client = new market_proto.Market(target, grpc.credentials.createInsecure());
 
-        options(node);
+        options(node, target);
+
+        var newUser = {
+            id: 1, // will be replaced by id given from Peer Node team
+            name: "hello",
+            ip: "ip",
+            port: 1234,
+            price: 123,
+            }
+    
+            // console.log(newUser);
+    
+            // client.registerFile({ user: newUser, fileHash: input }, function (err, response) {
+            //     console.log("error: "+err);
+            //     console.log("RegisterFile Response");
+            // });
+
+            putOrUpdateKeyValue(node, input, newUser);
         });
 }
 
