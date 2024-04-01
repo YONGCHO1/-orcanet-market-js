@@ -291,8 +291,6 @@ function add(node, target){
         //TODO: have user input info to add file and use proto and grpc to add the file like we did in centralized i guess?
         var client = new market_proto.Market(target, grpc.credentials.createInsecure());
 
-        options(node, target);
-
         var newUser = {
             id: 1, // will be replaced by id given from Peer Node team
             name: "hello",
@@ -302,13 +300,30 @@ function add(node, target){
             }
     
             // console.log(newUser);
+
     
             // client.registerFile({ user: newUser, fileHash: input }, function (err, response) {
             //     console.log("error: "+err);
             //     console.log("RegisterFile Response");
             // });
 
-            putOrUpdateKeyValue(node, input, newUser);
+            // Encode the key
+            const keyEncoded = new TextEncoder().encode(input)
+            const userInfo = `${newUser.id},${newUser.name},${newUser.ip},${newUser.port},${newUser.price}`;
+            // console.log(userInfo);
+            // Encode the userInfo as the value to be put in
+            const valueEncoded = new TextEncoder().encode(userInfo);
+            // call nodes put function to put k/v in thats encoded
+            await node.contentRouting.put(keyEncoded, valueEncoded);
+            // get the value back to see if it worked using the encoded key
+            const value = await node.contentRouting.get(keyEncoded);
+            const message = new TextDecoder().decode(value);
+            // Print the message after decoding it 
+            console.log("Value you stored: " + message);
+
+            // putOrUpdateKeyValue(node, input, newUser);
+
+            options(node, target);
         });
 }
 
