@@ -51,7 +51,7 @@
    ```
    Enter CID that you want to get from the network
    [File hash(CID)]
-   ``
+   ```
 9. exit
     ```
     Leaving Network
