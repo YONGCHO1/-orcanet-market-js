@@ -82,7 +82,7 @@ var market_proto = grpc.loadPackageDefinition(packageDefinition).market;
   });
 
   // This function registers a file and user into the servers HashMap 
-function registerFile(call, callback) {
+async function registerFile(call, callback) {
     let newUser = call.request.user;
     let cid = call.request.fileHash;
     console.log("------------------register file---------------------");
@@ -91,8 +91,21 @@ function registerFile(call, callback) {
 
     console.log(`New User: ${newUser}`);
     console.log(`CID: ${cid}`);
+
+    // const keyEncoded = new TextEncoder().encode(cid)
+    // const userInfo = `${newUser.id}/${newUser.name}/${newUser.ip}/${newUser.port}/${newUser.price}`;
+    // // console.log(userInfo);
+    // // Encode the userInfo as the value to be put in
+    // const valueEncoded = new TextEncoder().encode(userInfo);
+    // // call nodes put function to put k/v in thats encoded
+    // await node.contentRouting.put(keyEncoded, valueEncoded);
+    // // get the value back to see if it worked using the encoded key
+    // const value = await node.contentRouting.get(keyEncoded);
+    // const message = new TextDecoder().decode(value);
+    // // Print the message after decoding it 
+    // console.log("Value you stored: \n" + message);
   
-    putOrUpdateKeyValue(node, cid, multi);
+    // putOrUpdateKeyValue(node, cid, multi);
     callback(null, {});
 }
 
@@ -132,17 +145,17 @@ async function putOrUpdateKeyValue(node, cid, value) {
 }
 
 // CheckHolders should take a fileHash and looks it up in the hashmap and returns the list of users
-function checkHolders(call, callback) {
-    console.log("------------------check holders----------------------");
-    const cid = call.request.fileHash;
-    // const user = userFileMap.get(fileHash);
+// function checkHolders(call, callback) {
+//     const cid = call.request.fileHash;
+//     console.log("------------------check holders----------------------");
+//     // const user = userFileMap.get(fileHash);
+    
 
-    const holders = checkProvider(node, cid) 
-  
-    console.log("Users Found");
-    // printHolders(holders);
-    callback(null, {holders: holders});
-}
+
+//     console.log("Users Found");
+//     // printHolders(holders);
+//     callback(null, {holders: holders});
+// }
 
 // Check provider based on provided key
 function checkProvider(node, cid) {
@@ -173,52 +186,74 @@ function getTarget(node){
         my_port = addr_info[4];
     });
 
-    let target =  my_ip + ":" + my_port;
+    let target =  my_ip + ":8080";
     return target;
-}
+} 
 
-// const server = new grpc.Server();
-// server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
-// server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), () => {
-//     server.start();
-// });  
-
-  greet();
+greet();
 
 
-  function greet(){
+function greet(){
 
     // Prompting the user for input
     rl.question('Enter "start" to join the network\n', async (input) => {
         // Processing the user input
-            if(input == "start"){
-            // Create new node and start it
-                const node = await makeNode();
-                let target = getTarget(node);
+        if(input == "start"){
+        // Create new node and start it
+            const node = await makeNode();
+            let target = getTarget(node);
 
-                const server = new grpc.Server();
-                server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
-                server.bindAsync(target, grpc.ServerCredentials.createInsecure(), () => {
-                    // server.start();
-                }); 
+            async function checkHolders(call, callback) {
+                const cid = call.request.fileHash;
+                console.log("------------------check holders---------------------");
+                
+                const keyEncoded = new TextEncoder().encode(cid);
+                const value = await node.contentRouting.get(keyEncoded);
+                const message = new TextDecoder().decode(value);
 
-                // console.log(`Target is: ${target}`);
+                const values = message.split('/');
 
-                console.log("Joined Network");
-                // printNodeInfo(node);
-                options(node, target);
-                // rl.close();
-            } else{
-                console.log("Invalid Input: Try again!");
-                greet();
+                // console.log("PID of peer who has the file: " + values[0]);
+
+                const foundUser = {
+                    id: values[0],
+                    name: values[1],
+                    ip: values[2],
+                    port: values[3],
+                    price: values[4],
+                };
+                
+                const holders = [];
+                holders.push(foundUser);
+
+                // console.log("Users Found");
+                // printHolders(holders);
+                callback(null, {holders: holders});
             }
-    
-        // Closing the interface
-        });
+
+            const server = new grpc.Server();
+            server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
+            server.bindAsync(target, grpc.ServerCredentials.createInsecure(), () => {
+                // server.start();
+            }); 
+
+            // console.log(`Target is: ${target}`);
+
+            console.log("Joined Network");
+            // printNodeInfo(node);
+            options(node, target);
+            // rl.close();
+        } else{
+            console.log("Invalid Input: Try again!");
+            greet();
+        }
+
+    // Closing the interface
+    });
 }
 
 function options(node, target){
-    rl.question('Available options for user in Network:\n"info": displays node information\n"connect": connect to another node in the network\n"add": adds a file to the network\n"exit": exit the network\n', async (input) => {
+    rl.question('Available options for user in Network:\n"info": displays node information\n"connect": connect to another node in the network\n"add": adds a file to the network\n"get": gets a file from the network\n"exit": exit the network\n', async (input) => {
         if(input == "info"){
             printNodeInfo(node);
             options(node, target);
@@ -226,7 +261,11 @@ function options(node, target){
             connect(node, target);
         }else if(input == "add"){
             add(node, target);
-        }else if(input == "exit"){
+        }
+        else if(input == "get") {
+            get(node, target);
+        }
+        else if(input == "exit"){
             console.log("Leaving Network");
             await node.stop();
             rl.close();
@@ -294,14 +333,14 @@ function add(node, target){
         // console.log(`input value is ${input}`);
 
         let input_values = input.split(' ');
-        console.log(input_values[0]);
+        // console.log(input_values[0]);
         
         let my_ip;
         let my_port;
 
         const multiaddresses = node.getMultiaddrs();
         multiaddresses.forEach(addr => {
-            console.log(addr.toString());
+            // console.log(addr.toString());
             let addrs = addr.toString();
             let addr_info = addrs.split('/');
             my_ip = addr_info[2];
@@ -314,36 +353,63 @@ function add(node, target){
             ip: my_ip,
             port: my_port,
             price: input_values[2],
-            }
+        }
     
             // console.log(newUser);
 
     
-            // client.registerFile({ user: newUser, fileHash: input }, function (err, response) {
-            //     console.log("error: "+err);
-            //     console.log("RegisterFile Response");
-            // });
+        client.registerFile({ user: newUser, fileHash: input_values[0]}, async function (err, response) {
+            if (err) {
+                console.log("error: "+err);
+            }
+            else{
+                // Encode the key and value
+                const keyEncoded = new TextEncoder().encode(input_values[0])
+                const userInfo = `${newUser.id}/${newUser.name}/${newUser.ip}/${newUser.port}/${newUser.price}`;
+                const valueEncoded = new TextEncoder().encode(userInfo);
 
-            // Encode the key
-            const keyEncoded = new TextEncoder().encode(input_values[0])
-            const userInfo = `${newUser.id},${newUser.name},${newUser.ip},${newUser.port},${newUser.price}`;
-            // console.log(userInfo);
-            // Encode the userInfo as the value to be put in
-            const valueEncoded = new TextEncoder().encode(userInfo);
-            // call nodes put function to put k/v in thats encoded
-            await node.contentRouting.put(keyEncoded, valueEncoded);
-            // get the value back to see if it worked using the encoded key
-            const value = await node.contentRouting.get(keyEncoded);
-            const message = new TextDecoder().decode(value);
-            // Print the message after decoding it 
-            console.log("Value you stored: " + message);
-
-            // putOrUpdateKeyValue(node, input, newUser);
-
-            options(node, target);
+                // store the key and value in kadDHT
+                await node.contentRouting.put(keyEncoded, valueEncoded);
+                const value = await node.contentRouting.get(keyEncoded);
+                const message = new TextDecoder().decode(value);
+                console.log("Value you stored: \n" + message);
+                console.log("Successfully Registered File");
+                console.log("----------------end register file-------------------");
+            }
         });
+
+        options(node, target);
+    });
 }
 
+function get(node, target){
+    rl.question('Enter CID that you want to get from the network\n', (input) => {
+        var client = new market_proto.Market(target, grpc.credentials.createInsecure());
+
+        client.checkHolders({fileHash: input}, function (err, response) {
+            if(err) {
+                console.log("error: "+err);
+            }
+            else{
+                console.log(response.holders);
+                response.holders.forEach(user => {
+                    console.log(`Holder of the file is ${user.id}`);
+                });
+                console.log("----------------end check holders-------------------");
+            }
+        });
+
+        // const keyEncoded = new TextEncoder().encode(input);
+
+        // const value = await node.contentRouting.get(keyEncoded);
+        // console.log(value);
+        // const message = new TextDecoder().decode(value);
+        // //Print the message after decoding it 
+        // console.log("PID of peer who has the file: " + message);
+    });
+
+    options(node, target);
+}
 
 // Preventing the program from exiting immediately after rl.close()
 // setInterval(() => {}, 1000); // This keeps the event loop active
