@@ -47,7 +47,12 @@
     Enter file that you want to add to the network
     [File hash(CID)] [User Name] [Price per MB]
     ```
-7. exit
+7. get
+   ```
+   Enter CID that you want to get from the network
+   [File hash(CID)]
+   ```
+9. exit
     ```
     Leaving Network
     ```
