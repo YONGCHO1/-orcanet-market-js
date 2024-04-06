@@ -17,12 +17,15 @@
     "@multiformats/multiaddr": "^12.2.1",
     "@nodeutils/defaults-deep": "^1.1.0",
     "async": "^1.5.2",
+    "cids": "^1.1.9",
     "crypto": "^1.0.1",
     "google-protobuf": "^3.0.0",
     "libp2p": "^1.3.0",
     "libp2p-tcp": "^0.17.2",
     "lodash": "^4.6.1",
     "minimist": "^1.2.0",
+    "multihashes": "^4.0.3",
+    "multihashing-async": "^2.1.4",
     "peer-info": "^0.17.5"
   }
 }

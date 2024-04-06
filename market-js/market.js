@@ -66,26 +66,26 @@ function putOrUpdateKeyValue(node, cid, value) {
             console.log('First time to register the file');
             node.contentRouting.put(cid, value, (err) => {
                 if (err) {
-                console.error('Error registering value:', err);
-                } 
+                    console.error('Error registering value:', err);
+                }
                 else {
-                console.log('Value uploaded successfully for key', cid);
+                    console.log('Value uploaded successfully for key', cid);
                 }
             })
-        } 
+        }
 
         // The key(CID) exists in DHT node
         else {
-          // Update existing value with new value (might be needed to change to add with existing value)
-          const updatedValue = Array.isArray(existingValue) ? [...existingValue, ...value] : [existingValue, ...value];
-          node.contentRouting.put(cid, updatedValue, (err) => {
-            if (err) {
-              console.error('Error updating value:', err);
-            } 
-            else {
-              console.log('Value updated successfully for key', cid);
-            }
-          });
+            // Update existing value with new value (might be needed to change to add with existing value)
+            const updatedValue = Array.isArray(existingValue) ? [...existingValue, ...value] : [existingValue, ...value];
+            node.contentRouting.put(cid, updatedValue, (err) => {
+                if (err) {
+                    console.error('Error updating value:', err);
+                }
+                else {
+                    console.log('Value updated successfully for key', cid);
+                }
+            });
         }
     });
 }
@@ -97,11 +97,11 @@ function checkProvider(node, cid) {
         if (err) {
             console.error('Error retrieving existing value:', err);
             return;
-        } 
+        }
 
         // The key(CID) exists in DHT node
         else {
-          return existingValue;
+            return existingValue;
         }
     });
 }
@@ -112,28 +112,28 @@ function registerFile(call, callback) {
     let newUser = call.request.user;
     let cid = call.request.fileHash;
     // console.log("------------------register file---------------------");
-  
-  
-  
+
+
+
     let multi = [];
     multi.push(newUser);
-  
+
     putOrUpdateKeyValue(node, cid, multi)
-  
-    
+
+
     // // old way to add data
     // if (userFileMap.has(fileHash)) {
     //   console.log("File already exist");
-      
+
     //   let newMap = multi.concat(userFileMap.get(fileHash));
-      
+
     //   userFileMap.set(fileHash, newMap);
     // }
     // else {
     //   console.log("File doesn't exist");
     //   userFileMap.set(fileHash, multi);
     // }
-  
+
     // printMarket();
     // callback(null, {
     //   message: "File " + fileHash + " from " + newUser.name + "'s "
@@ -149,11 +149,11 @@ function checkHolders(call, callback) {
     const cid = call.request.fileHash;
     // const user = userFileMap.get(fileHash);
 
-    const holders = checkProvider(node, cid) 
-  
+    const holders = checkProvider(node, cid)
+
     console.log("Users Found");
     printHolders(holders);
-    callback(null, {holders: holders});
+    callback(null, { holders: holders });
 }
 
 async function main() {
@@ -179,9 +179,9 @@ async function main() {
 
     // Create new node and start it
     // const node = await makeNode();
-    if (isCLient){
+    if (isCLient) {
         console.log("say hi in client mode");
- 
+
         var target;
         // if (argv.target) {
         // target = argv.target;
@@ -203,24 +203,24 @@ async function main() {
 
         // TO DO:
         // I think we need to work on decide target and figure out what does target mean and work for.
-        target = my_ip+ ':'+my_port;
+        target = my_ip + ':' + my_port;
         console.log("Before Passing to connect proto file");
         var client = new market_proto.Market(target, grpc.credentials.createInsecure());
 
         console.log("Passed to connect proto file");
 
         var newUser = {
-        id: 1, // will be replaced by id given from Peer Node team
-        name: argv[1],
-        ip: my_ip,
-        port: my_port,
-        price: argv[2],
+            id: 1, // will be replaced by id given from Peer Node team
+            name: argv[1],
+            ip: my_ip,
+            port: my_port,
+            price: argv[2],
         }
 
         console.log(newUser);
 
         client.registerFile({ user: newUser, fileHash: "230942459824" }, function (err, response) {
-            console.log("error: "+err);
+            console.log("error: " + err);
             console.log("RegisterFile Response");
         });
 
@@ -250,7 +250,7 @@ async function main() {
 
         const server = new grpc.Server();
         server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
-        server.bindAsync(bindAddress, grpc.ServerCredentials.createInsecure(), 
+        server.bindAsync(bindAddress, grpc.ServerCredentials.createInsecure(),
             (err) => !err ? server.start() : console.log(err));
 
         const bootstrapAddresses = await Promise.all(bootstrapPeers.map(async (addr) => {
@@ -285,22 +285,22 @@ async function main() {
                 peerDiscovery: [
                     bootstrap({
                         list: bootstrapAddresses.filter(addr => addr !== null)
-                      })
+                    })
                 ],
                 services: {
                     kadDHT: kadDHT({
-                      kBucketSize: 20
+                        kBucketSize: 20
                     }),
                 }
             });
-    
+
             await dht.start();
         }
 
         await new Promise(() => { }); // Keep the program running
     }
-    
-   
+
+
 
     // const dht1 = new kadDHT({
     //     libp2p: node,
@@ -332,7 +332,7 @@ async function main() {
     //     }
     // });
 
-   
+
 
     // await dht.start();
     // await dht.bootstrap(bootstrapAddresses.filter(addr => addr !== null));
@@ -347,7 +347,7 @@ async function main() {
     //         .catch((error) => console.error('Failed to connect to peer:', peerInfo.id.toB58String(), error));
     // });
 
-    
+
 }
 
 main().catch((error) => {
