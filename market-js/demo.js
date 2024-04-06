@@ -206,28 +206,36 @@ function greet() {
                 const cid = call.request.fileHash;
                 console.log("------------------check holders---------------------");
 
-                const keyEncoded = new TextEncoder().encode(cid);
-                const value = await node.contentRouting.get(keyEncoded);
-                const message = new TextDecoder().decode(value);
+                try {
+                    const keyEncoded = new TextEncoder().encode(cid);
+                    const value = await node.contentRouting.get(keyEncoded);
+                    const message = new TextDecoder().decode(value);
+                    const values = message.split('/');
 
-                const values = message.split('/');
+                    console.log(value);
 
-                // console.log("PID of peer who has the file: " + values[0]);
+                    // console.log("PID of peer who has the file: " + values[0]);
 
-                const foundUser = {
-                    id: values[0],
-                    name: values[1],
-                    ip: values[2],
-                    port: values[3],
-                    price: values[4],
-                };
+                    const foundUser = {
+                        id: values[0],
+                        name: values[1],
+                        ip: values[2],
+                        port: values[3],
+                        price: values[4],
+                    };
 
-                const holders = [];
-                holders.push(foundUser);
+                    const holders = [];
+                    holders.push(foundUser);
 
-                // console.log("Users Found");
-                // printHolders(holders);
-                callback(null, { holders: holders });
+                    // console.log("Users Found");
+                    // printHolders(holders);
+                    callback(null, { holders: holders });
+
+                } catch (error) {
+                    console.log("Wrong filehash or there is no file you may want");
+                    // console.log(error);
+                }
+
             }
 
             const server = new grpc.Server();
@@ -362,18 +370,52 @@ function add(node, target) {
                 console.log("error: " + err);
             }
             else {
+                // const CID = require('cids');
+                // const multihashing = require('multihashing-async');
+                // const bytes = new TextEncoder('utf8').encode('OMG!');
+
+                //const cid = new CID(1, 'dag-pb', hash)
+
+
                 // Encode the key and value
-                const keyEncoded = new TextEncoder().encode(input_values[0])
+                const keyEncoded = new TextEncoder('utf8').encode(input_values[0]);
+                // console.log("Encoded?");
                 const userInfo = `${newUser.id}/${newUser.name}/${newUser.ip}/${newUser.port}/${newUser.price}`;
-                const valueEncoded = new TextEncoder().encode(userInfo);
+                const valueEncoded = new TextEncoder('utf8').encode(userInfo);
+                // console.log("Encoded2?");
 
                 // store the key and value in kadDHT
                 await node.contentRouting.put(keyEncoded, valueEncoded);
+
                 const value = await node.contentRouting.get(keyEncoded);
-                const message = new TextDecoder().decode(value);
+                const message = new TextDecoder('utf8').decode(value);
+
+
+                //response.callback(newUser);
+
+                // const hash = await multihashing(keyEncoded, 'sha2-256');
+                // const cid = new CID(1, 'dag-pb', hash);
+                // console.log(cid.toString());
+                // console.log(cid.multihash);
+                // console.log(cid.version);
+
+
+                // console.log("Before Encode3");
+                // await node.contentRouting.provide(cid);
+                // console.log("Encoded3");
+
+                console.log("Key Encoded: ", keyEncoded);
+
                 console.log("Value you stored: \n" + message);
                 console.log("Successfully Registered File");
+
+                // for await (const provider of providers) {
+                //     console.log("Provider: ", provider);
+                // }
+
                 console.log("----------------end register file-------------------");
+
+
             }
         });
 
@@ -391,6 +433,21 @@ function get(node, target) {
             }
             else {
                 console.log(response.holders);
+
+
+
+                // const keyEncoded = new TextEncoder('utf8').encode(input);
+                // const value = node.contentRouting.get(keyEncoded);
+
+                // console.log(value);
+
+                //  const providers = node.contentRouting.findProviders(input);
+
+                // console.log("Providers: ", providers);
+                // for (const prov of providers) {
+                //     console.log("provider: ", prov);
+                // }
+
                 response.holders.forEach(user => {
                     console.log(`Holder of the file is ${user.id}`);
                 });
