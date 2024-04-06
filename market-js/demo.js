@@ -28,6 +28,11 @@ const makeNode = async () => {
             kadDHT: kadDHT({
                 kBucketSize: 20
             }),
+        },
+        config: {
+            kadDHT: {
+                enabled: true
+            }
         }
     });
 
@@ -212,7 +217,7 @@ function greet() {
                     const message = new TextDecoder().decode(value);
                     const values = message.split('/');
 
-                    console.log(value);
+                    // console.log(value);
 
                     // console.log("PID of peer who has the file: " + values[0]);
 
@@ -223,6 +228,8 @@ function greet() {
                         port: values[3],
                         price: values[4],
                     };
+
+                    // console.log("PeerFound: ", node.peerRouting.findPeer(values[0]));
 
                     const holders = [];
                     holders.push(foundUser);
@@ -333,6 +340,10 @@ function connect(node, target) {
     });
 }
 
+const CID = require('cids');
+// const multihashing = require('multihashing-async');
+var multihash = require('multihashes')
+
 function add(node, target) {
     rl.question('Enter file that you want to add to the network\n', async (input) => {
         //TODO: have user input info to add file and use proto and grpc to add the file like we did in centralized i guess?
@@ -370,19 +381,31 @@ function add(node, target) {
                 console.log("error: " + err);
             }
             else {
-                // const CID = require('cids');
-                // const multihashing = require('multihashing-async');
-                // const bytes = new TextEncoder('utf8').encode('OMG!');
-
-                //const cid = new CID(1, 'dag-pb', hash)
-
-
                 // Encode the key and value
                 const keyEncoded = new TextEncoder('utf8').encode(input_values[0]);
                 // console.log("Encoded?");
                 const userInfo = `${newUser.id}/${newUser.name}/${newUser.ip}/${newUser.port}/${newUser.price}`;
                 const valueEncoded = new TextEncoder('utf8').encode(userInfo);
                 // console.log("Encoded2?");
+
+                // const hash = await multihash.encode(keyEncoded, 'sha2-256');
+
+                // // const hash = await multihashing(keyEncoded, 'sha2-256');
+                // var cid = new CID(hash);
+
+                // cid = cid.toV1();
+                // cid.multibaseName = 'base32';
+
+                // console.log("Hash: ", hash);
+                // console.log("Hash decoded: ", multihash.decode(hash));
+                // console.log("Version: ", cid.version);
+                // console.log("Codec: ", cid.codec);
+                // console.log("Code: ", cid.code);
+                // console.log("Multibase name: ", cid.multibaseName);
+                // console.log("CID string: ", cid.toString());
+                // console.log("CID-multihash-bytes: ", cid.multihash.bytes);
+
+                // await node.contentRouting.provide(cid);
 
                 // store the key and value in kadDHT
                 await node.contentRouting.put(keyEncoded, valueEncoded);
@@ -432,20 +455,24 @@ function get(node, target) {
                 console.log("error: " + err);
             }
             else {
-                console.log(response.holders);
+                // console.log(response.holders);
 
 
 
-                // const keyEncoded = new TextEncoder('utf8').encode(input);
+                const keyEncoded = new TextEncoder('utf8').encode(input);
+                const peers = node.peerRouting.getClosestPeers(keyEncoded);
+
                 // const value = node.contentRouting.get(keyEncoded);
 
                 // console.log(value);
 
                 //  const providers = node.contentRouting.findProviders(input);
 
-                // console.log("Providers: ", providers);
-                // for (const prov of providers) {
-                //     console.log("provider: ", prov);
+                console.log("Peers: ", peers.return().then(function (result) {
+                    console.log(result) // undefined value? 
+                }));
+                // for (const peer of peers) {
+                //     console.log("peer: ", peer);
                 // }
 
                 response.holders.forEach(user => {
