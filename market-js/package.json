@@ -20,6 +20,7 @@
     "cids": "^1.1.9",
     "crypto": "^1.0.1",
     "google-protobuf": "^3.0.0",
+    "ipfs-core": "^0.18.1",
     "libp2p": "^1.3.0",
     "libp2p-tcp": "^0.17.2",
     "lodash": "^4.6.1",
