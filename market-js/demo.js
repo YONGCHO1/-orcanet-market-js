@@ -9,9 +9,13 @@ import { noise } from '@chainsafe/libp2p-noise'
 import { kadDHT } from '@libp2p/kad-dht'
 import { mdns } from '@libp2p/mdns'
 import { multiaddr } from '@multiformats/multiaddr'
+import {create} from 'ipfs-core';
+import { CID } from 'multiformats/cid';
+import * as Block from 'multiformats/block'
+import * as codec from 'multiformats/codecs/json'
 
-const bootstrapPeers = [];
-// const bootstrapPeers = ['/ip4/192.168.1.166/tcp/49727/p2p/12D3KooWS57LJ3g4iXspp1WTG7eSuGYo1gR3R6yMXaZBzrrGBXNQ'];
+const bootstrapPeers = ['/dnsaddr/sg1.bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt'];
+
 
 const makeNode = async () => {
     const nodes = await createLibp2p({
@@ -21,10 +25,9 @@ const makeNode = async () => {
         transports: [tcp()],
         streamMuxers: [mplex()],
         connectionEncryption: [noise()],
-        peerDiscovery: [mdns()],
-        // peerDiscovery: [bootstrap({
-        //     list: bootstrapPeers
-        // })],
+        peerDiscovery: [mdns(), bootstrap({
+            list: bootstrapPeers
+        })],
         services: {
             kadDHT: kadDHT({
                 kBucketSize: 20
@@ -32,16 +35,35 @@ const makeNode = async () => {
         },
         config: {
             kadDHT: {
-                enabled: true
+                enabled: true,
+                randomWalk: {
+                    enabled: true,
+                }
             }
         }
     });
 
 
     // Add event listener to the node
-    nodes.addEventListener('peer:connect', (event) => {
+    nodes.addEventListener('peer:connect', async (event) => {
         const peerInfo = event.detail;
         console.log('A Peer ID ' + peerInfo + ' Connected with us!');
+        const peer = await nodes.peerRouting.findPeer(peerInfo);
+        
+        // console.log(peer);
+        nodes.peerStore.save(peerInfo, peer);
+        // nodes.peerStore.get
+        
+
+        // for (const peer of await nodes.peerStore.all()) {
+        //     console.log(peer);
+        //     peer.
+        // }
+        // nodes.peerStore.forEach(async p => {
+        //     // const peer = await nodes.peerRouting.findPeer(p.id);
+        //     const peer = await nodes.peerStore.get(p.id);
+        //     console.log(peer);
+        // })
     });
 
 
@@ -79,9 +101,8 @@ var market_proto = grpc.loadPackageDefinition(packageDefinition).market;
 
 // Importing the built-in 'readline' module
 const readline = require('readline');
-const CID = require('cids');
-const create = require('ipfs-core');
-// const multihashing = require('multihashing-async');
+// const CID = require('multiformats/cid');
+const multihashing = require('multihashing-async');
 var multihash = require('multihashes')
 
 // Creating an interface for reading from the command line
@@ -95,10 +116,12 @@ async function registerFile(call, callback) {
     // console.log(node);
     console.log(call.request);
     // console.log(node);
+    // console.log(call);
 
     let newUser = call.request.user;
     let cid = call.request.fileHash;
     console.log("------------------register file---------------------");
+    
 
     // const keyEncoded = new TextEncoder('utf8').encode(cid);
     // // console.log("Encoded?");
@@ -275,7 +298,8 @@ function getTarget(node) {
         my_port = addr_info[4];
     });
 
-    let target = my_ip + ":8080";
+    // let target = my_ip + ":"+my_port;
+    let target = my_ip + ":50051";
     return target;
 }
 
@@ -292,9 +316,41 @@ function greet() {
             const node = await makeNode();
             let target = getTarget(node);
             // node.peerRouting.getClosestPeers
+            node.contentRouting.provide
+
+            // node.peerStore
+            // node.contentRouting
+
+
+
+            // node.addEventListener('peer:connect', async (event) => {
+            //     console.log(event.detail);
+                
+            //     console.log(event.detail.multihash);
+            //     console.log(node.contentRouting.datastore);
+            //     const peerInfo = event.detail;
+            //     const peer = await node.peerRouting.findPeer(peerInfo);
+            //     console.log(peer);
+            //     // node.peerStore.save(peerInfo);
+            //     // console.log('A Peer ID ' + peerInfo + ' Connected with us!');
+                
+            // });
+
+
+
+            // node.getPeers
+            // node.peerStore.save
+
             // node.contentRouting.provide
 
-            node.contentRouting.provide
+            const server = new grpc.Server();
+            server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
+            server.bindAsync(target, grpc.ServerCredentials.createInsecure(), (error) => {
+                // server.start();
+                
+            });
+
+            // server.
 
             async function checkHolders(call, callback) {
                 const cid = call.request.fileHash;
@@ -349,13 +405,6 @@ function greet() {
                 }
 
             }
-
-            const server = new grpc.Server();
-            server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
-            server.bindAsync(target, grpc.ServerCredentials.createInsecure(), () => {
-                // server.start();
-            });
-
             // console.log(`Target is: ${target}`);
 
             console.log("Joined Network");
@@ -467,7 +516,6 @@ function add(node, target) {
 
         const multiaddresses = node.getMultiaddrs();
         multiaddresses.forEach(addr => {
-            // console.log(addr.toString());
             let addrs = addr.toString();
             let addr_info = addrs.split('/');
             my_ip = addr_info[2];
@@ -489,21 +537,36 @@ function add(node, target) {
 
         console.log("input value is "+ input_values[0]);
 
-        const ipfs = await create()
+        // const ipfs = await create();
 
-        // Add content to IPFS and get the CID
-        const content = Buffer.from(input_values[0]);
-        const { cid } = await ipfs.add(content)
+        // // Add content to IPFS and get the CID
+        // const content = Buffer.from(input_values[0]);
+        // const { cid } = await ipfs.add(content)
+        // new CID(input_values[0])
+        
+        // const hash = await multihashing(keyEncoded, 'sha2-256');
 
-        console.log('CID:', cid.toString())
+        const hash = await multihashing(keyEncoded, 'sha2-256');
+        console.log("pass hashing")
+        // const cid = new CID(0, 'dag-pb', hash);
+        const cid = CID.create(0, 112, hash);
+        console.log('CID:'+ cid.toString())
+        console.log("type of cid is " + typeof cid.toString());
+        
 
 
 
         // store the key and value in kadDHT
         try {
             console.log("get into try");
+            console.log(`node Id checking: ${node.peerId}`);
             console.log(keyEncoded);
+
+            // peerList.forEach(async peer => {
             const exist = await node.contentRouting.get(keyEncoded);
+            // })
+
+            
 
             console.log("The File already exist");
             const existingUserStr = new TextDecoder('utf8').decode(exist);
@@ -514,7 +577,9 @@ function add(node, target) {
             // console.log("PID of peer who has the file: " + values[0]);
 
             // Same User
-            if (values[0] == node.Id) {
+            console.log(`value: ${values[0]}`);
+            console.log(`node Id: ${node.peerId}`);
+            if (values[0] == node.peerId) {
                 console.log("Same User try to upload existing file");
                 if (values[3] == newUser.price) {
                     console.log("You already uploaded same file with the same price");
@@ -535,10 +600,22 @@ function add(node, target) {
         catch (error) {
             console.log("err is " + error);
             console.log("First time to upload the file");
+            // node.peerStore.forEach(async (peer) => {
+            //     console.log()
+            //     await peer.contentRouting.put(keyEncoded, valueEncoded)
+            // })
+            // await node.contentRouting.provide(new CID(content));
+            // await node.contentRouting.provide( CID.parse(input_values[0]));
+            CID.
+            console.log("before provide");
+            console.log(cid.multihash.by);
+            await node.contentRouting.provide(cid.toString());
+            // await node.contentRouting.provide(keyEncoded);
+            console.log("before Put");
             await node.contentRouting.put(keyEncoded, valueEncoded);
             client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response){});
         }
-        
+       
 
         const value = await node.contentRouting.get(keyEncoded);
         const message = new TextDecoder('utf8').decode(value);
@@ -546,8 +623,7 @@ function add(node, target) {
 
         //response.callback(newUser);
 
-        // const hash = await multihashing(keyEncoded, 'sha2-256');
-        // const cid = new CID(1, 'dag-pb', hash);
+        
         // console.log(cid.toString());
         // console.log(cid.multihash);
         // console.log(cid.version);
@@ -666,8 +742,9 @@ function add(node, target) {
 
 function get(node, target) {
     rl.question('Enter CID that you want to get from the network\n', (input) => {
+        console.log(`target is ${target}`);
         var client = new market_proto.Market(target, grpc.credentials.createInsecure());
-
+        console.log("get into get function");
         client.checkHolders({ fileHash: input }, function (err, response) {
             if (err) {
                 console.log("error: " + err);
