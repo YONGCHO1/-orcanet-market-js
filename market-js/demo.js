@@ -133,7 +133,7 @@ async function registerFile(call, callback) {
     //             // change the price in new User
     //         }
     //     }
-        
+
     //     // Different User
     //     else {
     //         const newValue = existingUserStr+"\n"+userInfo;
@@ -148,7 +148,7 @@ async function registerFile(call, callback) {
     //     console.log("First time to upload the file");
     //     await node.contentRouting.put(keyEncoded, valueEncoded);
     // }
-    
+
 
     // const value = await node.contentRouting.get(keyEncoded);
     // const message = new TextDecoder('utf8').decode(value);
@@ -176,7 +176,7 @@ async function registerFile(call, callback) {
     //     console.log("Provider: ", provider);
     // }
 
-    
+
     console.log(`New User: ${newUser}`);
     console.log(`CID: ${cid}`);
     console.log("----------------end register file-------------------");
@@ -301,12 +301,12 @@ function greet() {
                 console.log("------------------check holders---------------------");
 
                 try {
-                    console.log("key in the checkholders is "+cid);
+                    console.log("key in the checkholders is " + cid);
 
                     // for await (const peer of node.peerRouting.getClosestPeers(key)) {
                     //     console.log(peer.id, peer.multiaddrs)
                     // }
-                    
+
                     const keyEncoded = new TextEncoder('utf8').encode(cid);
                     const value = await node.contentRouting.get(keyEncoded);
                     const message = new TextDecoder('utf8').decode(value);
@@ -332,12 +332,12 @@ function greet() {
 
                     // console.log("PID of peer who has the file: " + values[0]);
 
-                    
+
 
                     // console.log("PeerFound: ", node.peerRouting.findPeer(values[0]));
 
-                    
-                    
+
+
 
                     // console.log("Users Found");
                     // printHolders(holders);
@@ -376,10 +376,10 @@ function options(node, target) {
         if (input == "info") {
             printNodeInfo(node);
             options(node, target);
-        } 
+        }
         else if (input == "connect") {
             connect(node, target);
-        } 
+        }
         else if (input == "add") {
             add(node, target);
         }
@@ -425,7 +425,7 @@ function connect(node, target) {
         //   } catch (err) {
         //     console.error('Error finding peer:', err);
         //   }
-        
+
 
         const bootstrapAddresses = await Promise.all(bootstrapPeers.map(async (addr) => {
             // console.log("get into bootstrap function");
@@ -487,7 +487,7 @@ function add(node, target) {
         const userInfo = `${newUser.id}/${newUser.name}/${newUser.ip}/${newUser.port}/${newUser.price}`;
         const valueEncoded = new TextEncoder('utf8').encode(userInfo);
 
-        console.log("input value is "+ input_values[0]);
+        console.log("input value is " + input_values[0]);
 
         const ipfs = await create()
 
@@ -523,22 +523,22 @@ function add(node, target) {
                     // change the price in new User. Need to Update User value.
                 }
             }
-            
+
             // Different User
             else {
-                const newValue = existingUserStr+"\n"+userInfo;
+                const newValue = existingUserStr + "\n" + userInfo;
                 const newValueEncoded = new TextEncoder('utf8').encode(newValue);
                 await node.contentRouting.put(keyEncoded, newValueEncoded);
-                client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response){});
+                client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response) { });
             }
         }
         catch (error) {
             console.log("err is " + error);
             console.log("First time to upload the file");
             await node.contentRouting.put(keyEncoded, valueEncoded);
-            client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response){});
+            client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response) { });
         }
-        
+
 
         const value = await node.contentRouting.get(keyEncoded);
         const message = new TextDecoder('utf8').decode(value);
@@ -614,7 +614,7 @@ function add(node, target) {
         //                     // change the price in new User
         //                 }
         //             }
-                    
+
         //             // Different User
         //             else {
         //                 const newValue = existingUserStr+"\n"+userInfo;
@@ -626,7 +626,7 @@ function add(node, target) {
         //             console.log("First time to upload the file");
         //             await node.contentRouting.put(keyEncoded, valueEncoded);
         //         }
-                
+
 
         //         const value = await node.contentRouting.get(keyEncoded);
         //         const message = new TextDecoder('utf8').decode(value);
