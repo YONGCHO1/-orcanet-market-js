@@ -16,73 +16,9 @@ import * as codec from 'multiformats/codecs/json'
 
 const bootstrapPeers = ['/dnsaddr/sg1.bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt'];
 
-
-const makeNode = async () => {
-    const nodes = await createLibp2p({
-        addresses: {
-            listen: ['/ip4/0.0.0.0/tcp/0']
-        },
-        transports: [tcp()],
-        streamMuxers: [mplex()],
-        connectionEncryption: [noise()],
-        peerDiscovery: [mdns(), bootstrap({
-            list: bootstrapPeers
-        })],
-        services: {
-            kadDHT: kadDHT({
-                kBucketSize: 20
-            }),
-        },
-        config: {
-            kadDHT: {
-                enabled: true,
-                randomWalk: {
-                    enabled: true,
-                }
-            }
-        }
-    });
-
-
-    // Add event listener to the node
-    nodes.addEventListener('peer:connect', async (event) => {
-        const peerInfo = event.detail;
-        console.log('A Peer ID ' + peerInfo + ' Connected with us!');
-        const peer = await nodes.peerRouting.findPeer(peerInfo);
-        
-        // console.log(peer);
-        nodes.peerStore.save(peerInfo, peer);
-        // nodes.peerStore.get
-        
-
-        // for (const peer of await nodes.peerStore.all()) {
-        //     console.log(peer);
-        //     peer.
-        // }
-        // nodes.peerStore.forEach(async p => {
-        //     // const peer = await nodes.peerRouting.findPeer(p.id);
-        //     const peer = await nodes.peerStore.get(p.id);
-        //     console.log(peer);
-        // })
-    });
-
-
-    // Event listener for peer discovery
-    nodes.addEventListener('peer:discovery', (event) => {
-        const peerId = event.detail.id.toString();
-        console.log(`Discovered: ${peerId}`);
-
-        // Attempt to connect to the discovered peer
-        // nodes.dial(event.detail).then(() => {
-        //     console.log(`Connected to ${peerId}`);
-        // }).catch((err) => {
-        //     console.error(`Failed to connect to ${peerId}: ${err.message}`);
-        // });
-    });
-
-    await nodes.start();
-    return nodes;
-}
+// Imports from our js export files
+import { createNewNode, getTargetFromNode, printNodeInfo} from "./market-utils.js";
+import { createGrpcClient } from "./grpc-utils.js";
 
 var PROTO_PATH = './market.proto';
 
@@ -256,19 +192,6 @@ async function putOrUpdateKeyValue(node, cid, value) {
     // });
 }
 
-// CheckHolders should take a fileHash and looks it up in the hashmap and returns the list of users
-// function checkHolders(call, callback) {
-//     const cid = call.request.fileHash;
-//     console.log("------------------check holders----------------------");
-//     // const user = userFileMap.get(fileHash);
-
-
-
-//     console.log("Users Found");
-//     // printHolders(holders);
-//     callback(null, {holders: holders});
-// }
-
 // Check provider based on provided key
 function checkProvider(node, cid) {
     node.contentRouting.get(cid, (err, existingValue) => {
@@ -285,23 +208,6 @@ function checkProvider(node, cid) {
     });
 }
 
-function getTarget(node) {
-    let my_ip
-    let my_port
-
-    const multiaddresses = node.getMultiaddrs();
-    multiaddresses.forEach(addr => {
-        // console.log(addr.toString());
-        let addrs = addr.toString();
-        let addr_info = addrs.split('/');
-        my_ip = addr_info[2];
-        my_port = addr_info[4];
-    });
-
-    // let target = my_ip + ":"+my_port;
-    let target = my_ip + ":50051";
-    return target;
-}
 
 greet();
 
@@ -313,10 +219,12 @@ function greet() {
         // Processing the user input
         if (input == "start") {
             // Create new node and start it
-            const node = await makeNode();
-            let target = getTarget(node);
+            const node = await createNewNode();
+            let target = getTargetFromNode(node);
             // node.peerRouting.getClosestPeers
-            node.contentRouting.provide
+
+
+            // node.contentRouting.provide
 
             // node.peerStore
             // node.contentRouting
@@ -448,16 +356,6 @@ function options(node, target) {
     });
 }
 
-function printNodeInfo(node) {
-    console.log("------------------------------------------------------------------------------------------------------------------------------")
-    console.log("My Node Info:")
-    console.log('Peer ID:', node.peerId.toString());
-    console.log('Connect to me on:');
-    const multiaddresses = node.getMultiaddrs();
-    multiaddresses.forEach(addr => console.log(addr.toString()));
-    console.log("------------------------------------------------------------------------------------------------------------------------------")
-}
-
 function connect(node, target) {
     rl.question('Enter address of node you want to connect to\n', async (input) => {
         //TODO: when address is entered dial that address and if it works say it was successful
@@ -465,16 +363,6 @@ function connect(node, target) {
         // const peers = [];
 
         bootstrapPeers.push(input);
-
-
-        // try {
-        //     const peer = await node.peerRouting.findPeer(input);
-        //     console.log('Found peer:', peer);
-        //     console.log('Addresses:', peer.addresses.map(addr => addr.toString()));
-        //   } catch (err) {
-        //     console.error('Error finding peer:', err);
-        //   }
-        
 
         const bootstrapAddresses = await Promise.all(bootstrapPeers.map(async (addr) => {
             // console.log("get into bootstrap function");
@@ -504,7 +392,8 @@ function connect(node, target) {
 function add(node, target) {
     rl.question('Enter file that you want to add to the network\n', async (input) => {
         //TODO: have user input info to add file and use proto and grpc to add the file like we did in centralized i guess?
-        var client = new market_proto.Market(target, grpc.credentials.createInsecure());
+        var client = createGrpcClient(target);
+
 
         // console.log(`input value is ${input}`);
 
@@ -743,7 +632,7 @@ function add(node, target) {
 function get(node, target) {
     rl.question('Enter CID that you want to get from the network\n', (input) => {
         console.log(`target is ${target}`);
-        var client = new market_proto.Market(target, grpc.credentials.createInsecure());
+        var client = createGrpcClient(target);
         console.log("get into get function");
         client.checkHolders({ fileHash: input }, function (err, response) {
             if (err) {
