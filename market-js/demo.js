@@ -18,7 +18,7 @@ const bootstrapPeers = ['/dnsaddr/sg1.bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76C
 
 // Imports from our js export util files
 import { createNewNode, getIpAndPortFromNode, getTargetFromNode, printNodeInfo} from "./market-utils.js";
-import { createGrpcClient } from "./grpc-utils.js";
+import { createGrpcClient, createGrpcServer } from "./grpc-utils.js";
 
 var PROTO_PATH = './market.proto';
 
@@ -222,44 +222,8 @@ function greet() {
             const node = await createNewNode();
             
             let target = getTargetFromNode(node);
-            // node.peerRouting.getClosestPeers
 
-
-            // node.contentRouting.provide
-
-            // node.peerStore
-            // node.contentRouting
-
-
-
-            // node.addEventListener('peer:connect', async (event) => {
-            //     console.log(event.detail);
-                
-            //     console.log(event.detail.multihash);
-            //     console.log(node.contentRouting.datastore);
-            //     const peerInfo = event.detail;
-            //     const peer = await node.peerRouting.findPeer(peerInfo);
-            //     console.log(peer);
-            //     // node.peerStore.save(peerInfo);
-            //     // console.log('A Peer ID ' + peerInfo + ' Connected with us!');
-                
-            // });
-
-
-
-            // node.getPeers
-            // node.peerStore.save
-
-            // node.contentRouting.provide
-
-            const server = new grpc.Server();
-            server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
-            server.bindAsync(target, grpc.ServerCredentials.createInsecure(), (error) => {
-                // server.start();
-                
-            });
-
-            // server.
+            const server = createGrpcServer(target, registerFile, checkHolders);
 
             async function checkHolders(call, callback) {
                 const cid = call.request.fileHash;
@@ -385,6 +349,7 @@ function connect(node, target) {
         options(node, target);
     });
 }
+
 
 function add(node, target) {
     rl.question('Enter file that you want to add to the network\n', async (input) => {

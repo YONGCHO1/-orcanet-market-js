@@ -87,6 +87,12 @@ function getTargetFromNode(node) {
     return target;
 }
 
+
+ /**
+   *  Gets a node's ip address and port number
+   *  Params: node(libp2p node)
+   *  Return: {ip: string, port: string}
+   */
 function getIpAndPortFromNode(node){
     let my_ip;
     let my_port;

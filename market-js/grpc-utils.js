@@ -29,6 +29,7 @@ async function registerFile(call, callback) {
     callback(null, {});
 }
 
+
 async function checkHolders(call, callback) {
     const cid = call.request.fileHash;
     console.log("------------------check holders---------------------");
@@ -80,14 +81,20 @@ async function checkHolders(call, callback) {
 
 }
 
-
-function startGrpcServer(target){
+  /**
+   *  Creates a Grpc server with given target, registerFilefunction and checkHoldersFunction
+   *  Params: target("ip:port"), registerFileFunction(function), checkHolderFunction(function)
+   *  Return: grpc server
+   */
+function createGrpcServer(target, registerFileFunction , checkHoldersFunction){
     const server = new grpc.Server();
-    server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
+    server.addService(market_proto.Market.service, { RegisterFile: registerFileFunction, CheckHolders: checkHoldersFunction });
     server.bindAsync(target, grpc.ServerCredentials.createInsecure(), (error) => {
         // server.start();
         
     });
+
+    return server;
 }
 
   /**
@@ -101,4 +108,4 @@ function createGrpcClient(target){
 
 
 // Export the function
-export {createGrpcClient};
+export {createGrpcServer, createGrpcClient};
