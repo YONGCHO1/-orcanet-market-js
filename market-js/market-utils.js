@@ -87,6 +87,24 @@ function getTargetFromNode(node) {
     return target;
 }
 
+function getIpAndPortFromNode(node){
+    let my_ip;
+    let my_port;
+
+    const multiaddresses = node.getMultiaddrs();
+    multiaddresses.forEach(addr => {
+        let addrs = addr.toString();
+        let addr_info = addrs.split('/');
+        my_ip = addr_info[2];
+        my_port = addr_info[4];
+    });
+
+    return{
+        ip: my_ip,
+        port: my_port
+    }
+}
+
 
   /**
    *  Prints a node's information into the console
@@ -105,4 +123,4 @@ function printNodeInfo(node) {
 
 
 // Export the function
-export { createNewNode, getTargetFromNode, printNodeInfo };
+export { createNewNode, getTargetFromNode, getIpAndPortFromNode, printNodeInfo };
