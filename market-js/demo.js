@@ -53,7 +53,7 @@ const makeNode = async () => {
 
         // console.log(peer);
         nodes.peerStore.save(peerInfo, peer);
-        nodes.dial(peerInfo)
+        nodes.dial(peerInfo);
 
 
         console.log('A Peer ID ' + peerInfo + ' Connected with us!');
@@ -207,69 +207,6 @@ async function registerFile(call, callback) {
     // putOrUpdateKeyValue(node, cid, multi);
 }
 
-// Put or update values to corresponding key
-async function putOrUpdateKeyValue(node, cid, value) {
-    const valueArr = new Uint8Array([value]);
-    const cidArr = new Uint8Array([cid]);
-
-    // await node.contentRouting.get(cidArr, async (err, existingValue) => {
-    //     // The key(CID) doesn't exist in DHT node
-    //     if (err) {
-    //         console.log('First time to register the file');
-    // node.contentRouting.put(cidArr, valueArr, (err) => {
-    //     if (err) {
-    //     console.error('Error registering value:', err);
-    //     } 
-    //     else {
-    //     console.log('Value uploaded successfully for key', cid);
-    //     }
-    // })
-    // } 
-
-    // The key(CID) exists in DHT node
-    // else {
-    // Update existing value with new value (might be needed to change to add with existing value)
-    //   const updatedValue = Array.isArray(existingValue) ? [...existingValue, ...value] : [existingValue, ...value];
-    //   await node.contentRouting.put(cidArr, updatedValue, (err) => {
-    //     if (err) {
-    //       console.error('Error updating value:', err);
-    //     } 
-    //     else {
-    //       console.log('Value updated successfully for key', cid);
-    //     }
-    //   });
-    // }
-    // });
-}
-
-// CheckHolders should take a fileHash and looks it up in the hashmap and returns the list of users
-// function checkHolders(call, callback) {
-//     const cid = call.request.fileHash;
-//     console.log("------------------check holders----------------------");
-//     // const user = userFileMap.get(fileHash);
-
-
-
-//     console.log("Users Found");
-//     // printHolders(holders);
-//     callback(null, {holders: holders});
-// }
-
-// Check provider based on provided key
-function checkProvider(node, cid) {
-    node.contentRouting.get(cid, (err, existingValue) => {
-        // The key(CID) doesn't exist in DHT node
-        if (err) {
-            console.error('Error retrieving existing value:', err);
-            return;
-        }
-
-        // The key(CID) exists in DHT node
-        else {
-            return existingValue;
-        }
-    });
-}
 
 function getTarget(node) {
     let my_ip
@@ -301,8 +238,7 @@ function greet() {
             // Create new node and start it
             const node = await makeNode();
             let target = getTarget(node);
-            // node.peerRouting.getClosestPeers
-            // node.contentRouting.provide
+
 
             // node.peerStore
             // node.contentRouting\
@@ -326,12 +262,6 @@ function greet() {
 
             // });
 
-
-
-            // node.getPeers
-            // node.peerStore.save
-
-            // node.contentRouting.provide
 
             const server = new grpc.Server();
             server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });

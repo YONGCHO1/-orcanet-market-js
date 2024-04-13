@@ -9,12 +9,13 @@ import { noise } from '@chainsafe/libp2p-noise'
 import { kadDHT } from '@libp2p/kad-dht'
 import { mdns } from '@libp2p/mdns'
 import { multiaddr } from '@multiformats/multiaddr'
+import { validate } from "multihashes";
 
 const bootstrapPeers = ['/dnsaddr/sg1.bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt'];
 
 const Validate = (key, value) => {
     const filehash = new TextDecoder('utf8').decode(key);
-    if(typeof filehash != "string") return console.log(`Key ${filehash} should be a string`);
+    if (typeof filehash != "string") return console.log(`Key ${filehash} should be a string`);
 
     const message = new TextDecoder('utf8').decode(value);
     const values = message.split('\n');
@@ -22,20 +23,36 @@ const Validate = (key, value) => {
     values.forEach(user => {
         const userInfo = user.split('/')
 
-        const {id, name, ip, port, price} = userInfo;
+        const { id, name, ip, port, price } = userInfo;
         if (typeof id != "string") return console.log('Type of id in value is incorrect');
         else if (typeof name != "string") return console.log('Type of name in value is incorrect');
         else if (typeof ip != "string") return console.log('Type of ip in value is incorrect');
         else if (typeof port != "number") return console.log('Type of port in value is incorrect');
         else if (typeof price != "number") return console.log('Type of price in value is incorrect');
-    })
+    });
 
     console.log("Passed all validations");
     return;
 }
 
-const Select = (key, value) => {
-    return;
+const Select = (key, records) => {
+
+    var result = 0;
+    // const filehash = new TextDecoder('utf8').decode(key);
+
+    // for (let i = 0; i < records.length; i++) {
+    //     const recordDecoded = new TextDecoder('utf8').decode(records[i]);
+
+    //     if (filehash === recordDecoded) {
+    //         // Comparing Time received or just the last index?
+    //         // In here, just getting the last index
+
+    //         result = i;
+
+    //     }
+    // }
+
+    return result;
 }
 
 const makeNode = async () => {
@@ -52,8 +69,12 @@ const makeNode = async () => {
         services: {
             dht: kadDHT({
                 kBucketSize: 20,
-                validators: Validate(),
-                selectors: Select(),
+                validators: {
+                    Validate: Validate()
+                },
+                selectors: {
+                    Select: Select()
+                }
             }),
         },
         config: {
@@ -62,7 +83,7 @@ const makeNode = async () => {
                 randomWalk: {
                     enabled: true,
                 }
-                
+
             }
         }
     });
@@ -75,7 +96,7 @@ const makeNode = async () => {
         const peer = await nodes.peerRouting.findPeer(peerInfo);
         // console.log(peer);
         await nodes.dial(peer.multiaddrs);
-        
+
         // console.log(peer);
         nodes.peerStore.patch(peerInfo, peer.multiaddrs);
         nodes.peerStore.save(peerInfo, peer.multiaddrs);
@@ -125,7 +146,7 @@ function getTarget(node) {
         my_port = addr_info[4];
     });
 
-    let target = my_ip + ":"+my_port;
+    let target = my_ip + ":" + my_port;
     // let target = my_ip + ":50051";
     return target;
 }
@@ -162,23 +183,23 @@ function greet() {
                 try {
                     console.log(`node Id checking: ${node.peerId}`);
 
-                    // const exist = await node.contentRouting.get(keyEncoded);
-                    const exist = node.services.dht.get(keyEncoded);
+                    const exist = await node.contentRouting.get(keyEncoded);
+                    // const exist = node.services.dht.get(keyEncoded);
                     for await (const queryEvent of exist) {
                         // Handle each query event
                         console.log('Query event:', queryEvent);
                     }
-                    console.log("exist value is "+ exist);
+                    console.log("exist value is " + exist);
 
 
                     const existingUserStr = new TextDecoder('utf8').decode(exist);
                     const values = existingUserStr.split('/');
                     if (values[0] == '' || values[0] == undefined) {
                         console.log("First time to upload the file from if");
-                        // await node.contentRouting.put(keyEncoded, valueEncoded);
-                        node.services.dht.put(keyEncoded, valueEncoded);
+                        await node.contentRouting.put(keyEncoded, valueEncoded);
+                        // node.services.dht.put(keyEncoded, valueEncoded);
                     }
-        
+
                     // Same User
                     else {
                         console.log("The File already exist");
@@ -193,39 +214,39 @@ function greet() {
                                 // change the price in new User. Need to Update User value.
                             }
                         }
-                        
+
                         // Different User
                         else {
-                            const newValue = existingUserStr+"\n"+userInfo;
+                            const newValue = existingUserStr + "\n" + userInfo;
                             const newValueEncoded = new TextEncoder('utf8').encode(newValue);
-                            // await node.contentRouting.put(keyEncoded, newValueEncoded);
-                            node.services.dht.put(keyEncoded, newValueEncoded);
+                            await node.contentRouting.put(keyEncoded, newValueEncoded);
+                            // node.services.dht.put(keyEncoded, newValueEncoded);
                         }
                     }
-                    
+
                 }
                 catch (error) {
-                    console.log("First time to upload the file from err");
-                    // const hi = await node.contentRouting.put(keyEncoded, valueEncoded);
-                    node.services.dht.put(keyEncoded, valueEncoded);
+                    // console.log("First time to upload the file from err");
+                    const hi = await node.contentRouting.put(keyEncoded, valueEncoded);
+                    // node.services.dht.put(keyEncoded, valueEncoded);
                 }
 
-                node.services.dht.refreshRoutingTable();
+                // node.services.dht.refreshRoutingTable();
 
-                
-                const value = node.services.dht.get(keyEncoded);
-                for await (const queryEvent of value) {
-                    // Handle each query event
-                    console.log('Query event:', queryEvent);
-                    console.log("record from query event is ", queryEvent.record);
-                }
+
+                // const value = node.services.dht.get(keyEncoded);
+                // for await (const queryEvent of value) {
+                //     // Handle each query event
+                //     console.log('Query event:', queryEvent);
+                //     console.log("record from query event is ", queryEvent.record);
+                // }
 
                 // node.contentRouting.refreshRoutingTable();
-                // const value = await node.contentRouting.get(keyEncoded);
-                // console.log(value);
-                // const message = new TextDecoder('utf8').decode(value);
-                // console.log("value from node get is \n"+ message);
-                
+                const value = await node.contentRouting.get(keyEncoded);
+                console.log(value);
+                const message = new TextDecoder('utf8').decode(value);
+                console.log("value from node get is \n" + message);
+
                 console.log("----------------end register file-------------------");
                 callback(null, {});
             }
@@ -234,24 +255,27 @@ function greet() {
             async function checkHolders(call, callback) {
                 const cid = call.request.fileHash;
                 console.log("------------------check holders---------------------");
-                
-                try {
-                    console.log("key in the checkholders is "+cid);
-                    
-                    const keyEncoded = new TextEncoder('utf8').encode(cid);
-                    // const value = await node.contentRouting.get(keyEncoded);
-                    // const message = new TextDecoder('utf8').decode(value);
 
-                    node.services.dht.refreshRoutingTable();
-                    const value = node.services.dht.get(keyEncoded);
-                    for await (const queryEvent of value) {
-                        // Handle each query event
-                        console.log('Query event:', queryEvent);
-                        const message = new TextDecoder('utf8').decode(queryEvent);
-                    }
+                try {
+                    console.log("key in the checkholders is " + cid);
+
+                    const keyEncoded = new TextEncoder('utf8').encode(cid);
+                    const value = await node.contentRouting.get(keyEncoded);
+                    const message = new TextDecoder('utf8').decode(value);
+
+                    // node.services.dht.refreshRoutingTable();
+                    // const value = node.services.dht.get(keyEncoded);
+
+                    // for await (const queryEvent of value) {
+                    //     // Handle each query event
+                    //     console.log('Query event:', queryEvent);
+                    //     const message = new TextDecoder('utf8').decode(queryEvent);
+
+                    //     console.log("Message: ", message);
+                    // }
 
                     console.log("passed node.get()");
-                   
+
                     const values = message.split('\n');
 
                     const holders = [];
@@ -274,6 +298,7 @@ function greet() {
 
                 } catch (error) {
                     console.log("Wrong filehash or there is no file you may want");
+                    console.error(error);
                 }
                 console.log("----------------end check holders-------------------");
             }
@@ -293,10 +318,10 @@ function options(node, target) {
         if (input == "info") {
             printNodeInfo(node);
             options(node, target);
-        } 
+        }
         else if (input == "connect") {
             connect(node, target);
-        } 
+        }
         else if (input == "add") {
             add(node, target);
         }
@@ -380,7 +405,7 @@ function add(node, target) {
             price: input_values[2],
         }
 
-        client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response){});
+        client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response) { });
 
         options(node, target);
     });
