@@ -9,9 +9,14 @@ import { noise } from '@chainsafe/libp2p-noise'
 import { kadDHT } from '@libp2p/kad-dht'
 import { mdns } from '@libp2p/mdns'
 import { multiaddr } from '@multiformats/multiaddr'
+import { create } from 'ipfs-core';
+import { CID } from 'multiformats/cid';
+import * as Block from 'multiformats/block'
+import * as codec from 'multiformats/codecs/json'
+import { exit } from "process";
 
-const bootstrapPeers = [];
-// const bootstrapPeers = ['/ip4/192.168.1.166/tcp/49727/p2p/12D3KooWS57LJ3g4iXspp1WTG7eSuGYo1gR3R6yMXaZBzrrGBXNQ'];
+const bootstrapPeers = ['/dnsaddr/sg1.bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt'];
+
 
 const makeNode = async () => {
     const nodes = await createLibp2p({
@@ -21,10 +26,9 @@ const makeNode = async () => {
         transports: [tcp()],
         streamMuxers: [mplex()],
         connectionEncryption: [noise()],
-        peerDiscovery: [mdns()],
-        // peerDiscovery: [bootstrap({
-        //     list: bootstrapPeers
-        // })],
+        peerDiscovery: [mdns(), bootstrap({
+            list: bootstrapPeers
+        })],
         services: {
             kadDHT: kadDHT({
                 kBucketSize: 20
@@ -32,16 +36,40 @@ const makeNode = async () => {
         },
         config: {
             kadDHT: {
-                enabled: true
+                enabled: true,
+                randomWalk: {
+                    enabled: true,
+                }
             }
         }
     });
 
 
     // Add event listener to the node
-    nodes.addEventListener('peer:connect', (event) => {
+    nodes.addEventListener('peer:connect', async (event) => {
         const peerInfo = event.detail;
+
+        const peer = await nodes.peerRouting.findPeer(peerInfo);
+
+        // console.log(peer);
+        nodes.peerStore.save(peerInfo, peer);
+        nodes.dial(peerInfo)
+
+
         console.log('A Peer ID ' + peerInfo + ' Connected with us!');
+
+        // nodes.peerStore.get
+
+
+        // for (const peer of await nodes.peerStore.all()) {
+        //     console.log(peer);
+        //     peer.
+        // }
+        // nodes.peerStore.forEach(async p => {
+        //     // const peer = await nodes.peerRouting.findPeer(p.id);
+        //     const peer = await nodes.peerStore.get(p.id);
+        //     console.log(peer);
+        // })
     });
 
 
@@ -79,9 +107,8 @@ var market_proto = grpc.loadPackageDefinition(packageDefinition).market;
 
 // Importing the built-in 'readline' module
 const readline = require('readline');
-const CID = require('cids');
-const create = require('ipfs-core');
-// const multihashing = require('multihashing-async');
+// const CID = require('multiformats/cid');
+const multihashing = require('multihashing-async');
 var multihash = require('multihashes')
 
 // Creating an interface for reading from the command line
@@ -95,10 +122,12 @@ async function registerFile(call, callback) {
     // console.log(node);
     console.log(call.request);
     // console.log(node);
+    // console.log(call);
 
     let newUser = call.request.user;
     let cid = call.request.fileHash;
     console.log("------------------register file---------------------");
+
 
     // const keyEncoded = new TextEncoder('utf8').encode(cid);
     // // console.log("Encoded?");
@@ -155,26 +184,6 @@ async function registerFile(call, callback) {
 
 
     //response.callback(newUser);
-
-    // const hash = await multihashing(keyEncoded, 'sha2-256');
-    // const cid = new CID(1, 'dag-pb', hash);
-    // console.log(cid.toString());
-    // console.log(cid.multihash);
-    // console.log(cid.version);
-
-
-    // console.log("Before Encode3");
-    // await node.contentRouting.provide(cid);
-    // console.log("Encoded3");
-
-    // console.log("Key Encoded: ", keyEncoded);
-
-    // console.log("Value you stored: \n" + message);
-    // console.log("Successfully Registered File");
-
-    // for await (const provider of providers) {
-    //     console.log("Provider: ", provider);
-    // }
 
 
     console.log(`New User: ${newUser}`);
@@ -275,7 +284,8 @@ function getTarget(node) {
         my_port = addr_info[4];
     });
 
-    let target = my_ip + ":8080";
+    // let target = my_ip + ":"+my_port;
+    let target = my_ip + ":50051";
     return target;
 }
 
@@ -294,7 +304,43 @@ function greet() {
             // node.peerRouting.getClosestPeers
             // node.contentRouting.provide
 
-            node.contentRouting.provide
+            // node.peerStore
+            // node.contentRouting\
+            // node.peerRouting.getClosestPeers()
+
+            for (const peer of await node.peerStore.all()) {
+                console.log("Peer: ", peer);
+            }
+
+
+            // node.addEventListener('peer:connect', async (event) => {
+            //     console.log(event.detail);
+
+            //     console.log(event.detail.multihash);
+            //     console.log(node.contentRouting.datastore);
+            //     const peerInfo = event.detail;
+            //     const peer = await node.peerRouting.findPeer(peerInfo);
+            //     console.log(peer);
+            //     // node.peerStore.save(peerInfo);
+            //     // console.log('A Peer ID ' + peerInfo + ' Connected with us!');
+
+            // });
+
+
+
+            // node.getPeers
+            // node.peerStore.save
+
+            // node.contentRouting.provide
+
+            const server = new grpc.Server();
+            server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
+            server.bindAsync(target, grpc.ServerCredentials.createInsecure(), (error) => {
+                // server.start();
+
+            });
+
+            // server.
 
             async function checkHolders(call, callback) {
                 const cid = call.request.fileHash;
@@ -326,6 +372,8 @@ function greet() {
                         };
 
                         holders.push(foundUser);
+
+                        console.log(foundUser);
                     })
 
                     // console.log(value);
@@ -349,13 +397,6 @@ function greet() {
                 }
 
             }
-
-            const server = new grpc.Server();
-            server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
-            server.bindAsync(target, grpc.ServerCredentials.createInsecure(), () => {
-                // server.start();
-            });
-
             // console.log(`Target is: ${target}`);
 
             console.log("Joined Network");
@@ -417,7 +458,6 @@ function connect(node, target) {
 
         bootstrapPeers.push(input);
 
-
         // try {
         //     const peer = await node.peerRouting.findPeer(input);
         //     console.log('Found peer:', peer);
@@ -448,10 +488,6 @@ function connect(node, target) {
     });
 }
 
-// const CID = require('cids');
-// // const multihashing = require('multihashing-async');
-// var multihash = require('multihashes')
-
 function add(node, target) {
     rl.question('Enter file that you want to add to the network\n', async (input) => {
         //TODO: have user input info to add file and use proto and grpc to add the file like we did in centralized i guess?
@@ -467,7 +503,6 @@ function add(node, target) {
 
         const multiaddresses = node.getMultiaddrs();
         multiaddresses.forEach(addr => {
-            // console.log(addr.toString());
             let addrs = addr.toString();
             let addr_info = addrs.split('/');
             my_ip = addr_info[2];
@@ -485,59 +520,137 @@ function add(node, target) {
         const keyEncoded = new TextEncoder('utf8').encode(input_values[0]);
         // console.log("Encoded?");
         const userInfo = `${newUser.id}/${newUser.name}/${newUser.ip}/${newUser.port}/${newUser.price}`;
-        const valueEncoded = new TextEncoder('utf8').encode(userInfo);
 
         console.log("input value is " + input_values[0]);
 
-        const ipfs = await create()
-
-        // Add content to IPFS and get the CID
-        const content = Buffer.from(input_values[0]);
-        const { cid } = await ipfs.add(content)
-
-        console.log('CID:', cid.toString())
-
-
-
-        // store the key and value in kadDHT
         try {
+
+            // for await (const event of node.services.kadDHT.findPeer(node.peerId)) {
+            //     console.info(event);
+            // }
+
+            for (const peer of await node.peerStore.all()) {
+                console.log("Peer: ", peer);
+            }
+
+            for await (const peer of node.peerRouting.getClosestPeers(node.peerId.toBytes())) {
+                console.log("close Peer:", peer.id, peer.multiaddrs)
+            }
+
             console.log("get into try");
-            console.log(keyEncoded);
             const exist = await node.contentRouting.get(keyEncoded);
-
             console.log("The File already exist");
-            const existingUserStr = new TextDecoder('utf8').decode(exist);
-            const values = existingUserStr.split('/');
+            var cur_value = new TextDecoder('utf8').decode(exist);
 
-            // console.log(value);
+            console.log("cur_value1: ", cur_value);
 
-            // console.log("PID of peer who has the file: " + values[0]);
+            var users_in_value = cur_value.split('\n');
+            console.log(users_in_value);
 
-            // Same User
-            if (values[0] == node.Id) {
-                console.log("Same User try to upload existing file");
-                if (values[3] == newUser.price) {
-                    console.log("You already uploaded same file with the same price");
+            for (let i = 0; i < users_in_value.length; i++) {
+                var values = users_in_value[i].split('/');
+
+                if (values[0] == node.peerId) {
+                    console.log("Same User try to upload existing file");
+                    if (values[4] == newUser.price) {
+                        console.log("You already uploaded same file with the same price");
+                        break;
+                    }
+                    else {
+                        // change the price in new User. Need to Update User value.
+                        values[4] = newUser.price;
+                        // var temp_val = values.toString();
+                        users_in_value[i] = values.toString().replaceAll(',', '/');
+                        cur_value = users_in_value.toString().replaceAll(',', '\n');
+                        break;
+
+                    }
                 }
-                else {
-                    // change the price in new User. Need to Update User value.
+                else if (i === (users_in_value.length - 1)) {   // add the different user
+                    cur_value += '\n';
+                    cur_value += userInfo;
                 }
             }
 
-            // Different User
-            else {
-                const newValue = existingUserStr + "\n" + userInfo;
-                const newValueEncoded = new TextEncoder('utf8').encode(newValue);
-                await node.contentRouting.put(keyEncoded, newValueEncoded);
-                client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response) { });
-            }
-        }
-        catch (error) {
-            console.log("err is " + error);
+            console.log("cur_value2: ", cur_value);
+
+            const existValueEncoded = new TextEncoder('utf8').encode(cur_value);
+
+            await node.contentRouting.put(keyEncoded, existValueEncoded);
+            client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response) { });
+
+
+        } catch (error) {
+            console.log(error);
             console.log("First time to upload the file");
+            const valueEncoded = new TextEncoder('utf8').encode(userInfo);
+
             await node.contentRouting.put(keyEncoded, valueEncoded);
             client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response) { });
         }
+
+
+        // store the key and value in kadDHT
+        // try {
+        //     console.log("get into try");
+        //     console.log(`node Id checking: ${node.peerId}`);
+        //     console.log(keyEncoded);
+
+        //     // peerList.forEach(async peer => {
+        //     const exist = await node.contentRouting.get(keyEncoded);
+        //     // })
+
+
+
+        //     console.log("The File already exist");
+        //     const existingUserStr = new TextDecoder('utf8').decode(exist);
+        //     const values = existingUserStr.split('/');
+
+        //     // console.log(value);
+        //     // console.log("PID of peer who has the file: " + values[0]);
+
+        //     // Same User
+        //     console.log(`value: ${values[0]}`);
+        //     console.log(`node Id: ${node.peerId}`);
+        //     if (values[0] == node.peerId) {
+        //         console.log("Same User try to upload existing file");
+        //         if (values[3] == newUser.price) {
+        //             console.log("You already uploaded same file with the same price");
+        //         }
+        //         else {
+        //             // change the price in new User. Need to Update User value.
+
+        //             await node.contentRouting.put(keyEncoded, valueEncoded);
+        //             client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response) { });
+        //         }
+        //     }
+
+        //     // Different User
+        //     else {
+        //         const newValue = existingUserStr + "\n" + userInfo;
+        //         const newValueEncoded = new TextEncoder('utf8').encode(newValue);
+        //         await node.contentRouting.put(keyEncoded, newValueEncoded);
+        //         client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response) { });
+        //     }
+        // }
+        // catch (error) {
+        //     console.log("err is " + error);
+        //     console.log("First time to upload the file");
+        //     // node.peerStore.forEach(async (peer) => {
+        //     //     console.log()
+        //     //     await peer.contentRouting.put(keyEncoded, valueEncoded)
+        //     // })
+        //     // await node.contentRouting.provide(new CID(content));
+        //     // await node.contentRouting.provide( CID.parse(input_values[0]));
+        //     // CID.
+        //     // console.log("before provide");
+        //     // console.log(cid.multihash.by);
+        //     // await node.contentRouting.provide(cid.toString());
+        //     // await node.contentRouting.provide(keyEncoded);
+        //     // console.log("before Put");
+        //     await node.contentRouting.put(keyEncoded, valueEncoded);
+        //     client.registerFile({ user: newUser, fileHash: input_values[0] }, function (err, response) { });
+        // }
 
 
         const value = await node.contentRouting.get(keyEncoded);
@@ -546,20 +659,10 @@ function add(node, target) {
 
         //response.callback(newUser);
 
-        // const hash = await multihashing(keyEncoded, 'sha2-256');
-        // const cid = new CID(1, 'dag-pb', hash);
-        // console.log(cid.toString());
-        // console.log(cid.multihash);
-        // console.log(cid.version);
-
-
-        // console.log("Before Encode3");
-        // await node.contentRouting.provide(cid);
-        // console.log("Encoded3");
-
         console.log("Key Encoded: ", keyEncoded);
-
         console.log("Value you stored: \n" + message);
+
+
 
         // client.registerFile({ user: newUser, fileHash: input_values[0] }, async function (err, response) {
         //     if (err) {
@@ -666,8 +769,9 @@ function add(node, target) {
 
 function get(node, target) {
     rl.question('Enter CID that you want to get from the network\n', (input) => {
+        console.log(`target is ${target}`);
         var client = new market_proto.Market(target, grpc.credentials.createInsecure());
-
+        console.log("get into get function");
         client.checkHolders({ fileHash: input }, function (err, response) {
             if (err) {
                 console.log("error: " + err);
@@ -678,20 +782,9 @@ function get(node, target) {
 
 
                 const keyEncoded = new TextEncoder('utf8').encode(input);
-                const peers = node.peerRouting.getClosestPeers(keyEncoded);
+                // const peers = node.peerRouting.getClosestPeers(keyEncoded);
 
                 // const value = node.contentRouting.get(keyEncoded);
-
-                // console.log(value);
-
-                //  const providers = node.contentRouting.findProviders(input);
-
-                console.log("Peers: ", peers.return().then(function (result) {
-                    console.log(result) // undefined value? 
-                }));
-                // for (const peer of peers) {
-                //     console.log("peer: ", peer);
-                // }
 
                 response.holders.forEach(user => {
                     console.log(`Holder of the file is ${user.id}`);
