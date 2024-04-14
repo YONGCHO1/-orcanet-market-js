@@ -1,116 +1,13 @@
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
-import { createLibp2p } from 'libp2p'
-import { bootstrap } from '@libp2p/bootstrap'
-import { tcp } from '@libp2p/tcp'
-import { mplex } from '@libp2p/mplex'
-import { noise } from '@chainsafe/libp2p-noise'
-import { kadDHT } from '@libp2p/kad-dht'
-import { mdns } from '@libp2p/mdns'
 import { multiaddr } from '@multiformats/multiaddr'
 
+// Imports from our JS files
+import { createNewNode, getTargetFromNode, printNodeInfo } from "./market-utils.js";
+import { createGrpcClient, createGrpcServer } from "./grpc-utils.js";
+
 const bootstrapPeers = ['/dnsaddr/sg1.bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt'];
-
-const Validate = (key, value) => {
-    console.log("validate function activate")
-    const filehash = new TextDecoder('utf8').decode(key);
-    if(typeof filehash != "string") return console.log(`Key ${filehash} should be a string`);
-
-    const message = new TextDecoder('utf8').decode(value);
-    const values = message.split('\n');
-
-    values.forEach(user => {
-        const userInfo = user.split('/')
-
-        const {id, name, ip, port, price} = userInfo;
-
-        console.log(userInfo);
-
-        if (typeof id != "string") return console.log('Type of id in value is incorrect');
-        else if (typeof name != "string") return console.log('Type of name in value is incorrect');
-        else if (typeof ip != "string") return console.log('Type of ip in value is incorrect');
-        else if (typeof port != "number") return console.log('Type of port in value is incorrect');
-        else if (typeof price != "number") return console.log('Type of price in value is incorrect');
-    })
-
-    console.log("Passed all validations");
-    return;
-}
-
-const Select = (key, value) => {
-    return;
-}
-
-const makeNode = async () => {
-    const nodes = await createLibp2p({
-        addresses: {
-            listen: ['/ip4/0.0.0.0/tcp/0']
-        },
-        transports: [tcp()],
-        streamMuxers: [mplex()],
-        connectionEncryption: [noise()],
-        peerDiscovery: [mdns(), bootstrap({
-            list: bootstrapPeers
-        })],
-        services: {
-            dht: kadDHT({
-                kBucketSize: 20,
-                validators: Validate(),
-                selectors: Select(),
-                // querySelfInterval: 5,
-            }),
-        },
-        config: {
-            kadDHT: {
-                enabled: true,
-                randomWalk: {
-                    enabled: true,
-                }
-                
-            }
-        }
-    });
-    nodes.services.dht.setMode("server");
-
-
-    // Add event listener to the node
-    nodes.addEventListener('peer:connect', async (event) => {
-        const peerInfo = event.detail;
-        console.log('A Peer ID ' + peerInfo + ' Connected with us!');
-        const peer = await nodes.peerRouting.findPeer(peerInfo);
-        // console.log(peer);
-        await nodes.dial(peer.multiaddrs);
-        
-        // console.log(peer);
-        nodes.peerStore.patch(peerInfo, peer.multiaddrs);
-        nodes.peerStore.save(peerInfo, peer.multiaddrs);
-    });
-
-
-    // Event listener for peer discovery
-    nodes.addEventListener('peer:discovery', (event) => {
-        const peerId = event.detail.id.toString();
-        console.log(`Discovered: ${peerId}`);
-    });
-
-    await nodes.start();
-    return nodes;
-}
-
-var PROTO_PATH = './market.proto';
-var grpc = require('@grpc/grpc-js');
-var protoLoader = require('@grpc/proto-loader');
-var packageDefinition = protoLoader.loadSync(
-    PROTO_PATH,
-    {
-        keepCase: true,
-        longs: String,
-        enums: String,
-        defaults: true,
-        oneofs: true
-    });
-var market_proto = grpc.loadPackageDefinition(packageDefinition).market;
 
 const readline = require('readline');
 
@@ -118,25 +15,6 @@ const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
-
-function getTarget(node) {
-    let my_ip
-    let my_port
-
-    const multiaddresses = node.getMultiaddrs();
-    multiaddresses.forEach(addr => {
-        let addrs = addr.toString();
-        let addr_info = addrs.split('/');
-        my_ip = addr_info[2];
-        my_port = addr_info[4];
-    });
-
-    // let target = my_ip + ":"+my_port;
-    // let target = my_ip + ":50051";
-    // let target = "127.0.0.1:" + my_port;
-    let target = "127.0.0.1:50051";
-    return target;
-}
 
 greet();
 
@@ -147,16 +25,11 @@ function greet() {
         // Processing the user input
         if (input == "start") {
             // Create new node and start it
-            const node = await makeNode();
+            const node = await createNewNode();
             // node.services.dht.setMode("server");
-            let target = getTarget(node);
+            let target = getTargetFromNode(node);
 
-            const server = new grpc.Server();
-            server.addService(market_proto.Market.service, { RegisterFile: registerFile, CheckHolders: checkHolders });
-            console.log(`target is ${target}`);
-            server.bindAsync(target, grpc.ServerCredentials.createInsecure(), (error) => {
-                // server.start();
-            });
+            const server = createGrpcServer(target, registerFile, checkHolders);
 
             // ######## Registerfile Function #########
             async function registerFile(call, callback) {
@@ -348,16 +221,6 @@ function options(node, target) {
     });
 }
 
-function printNodeInfo(node) {
-    console.log("------------------------------------------------------------------------------------------------------------------------------")
-    console.log("My Node Info:")
-    console.log('Peer ID:', node.peerId.toString());
-    console.log('Connect to me on:');
-    const multiaddresses = node.getMultiaddrs();
-    multiaddresses.forEach(addr => console.log(addr.toString()));
-    console.log("------------------------------------------------------------------------------------------------------------------------------")
-}
-
 function connect(node, target) {
     rl.question('Enter address of node you want to connect to\n', async (input) => {
         //TODO: when address is entered dial that address and if it works say it was successful
@@ -389,7 +252,8 @@ function add(node, target) {
     rl.question('Enter file that you want to add to the network\n', async (input) => {
         //TODO: have user input info to add file and use proto and grpc to add the file like we did in centralized i guess?
         console.log(`target is ${target}`);
-        var client = new market_proto.Market(target, grpc.credentials.createInsecure());
+        // var client = new market_proto.Market(target, grpc.credentials.createInsecure());
+        var client = createGrpcClient(target);
         let input_values = input.split(' ');
         // console.log(input_values[0]);
 
@@ -421,7 +285,7 @@ function add(node, target) {
 function get(node, target) {
     rl.question('Enter CID that you want to get from the network\n', (input) => {
         console.log(`target is ${target}`);
-        var client = new market_proto.Market(target, grpc.credentials.createInsecure());
+        var client = createGrpcClient(target);
         console.log("get into get function");
         client.checkHolders({ fileHash: input }, function (err, response) {
             if (err) {

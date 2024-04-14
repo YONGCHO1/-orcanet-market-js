@@ -9,14 +9,48 @@ import { mdns } from '@libp2p/mdns'
 const bootstrapPeers = ['/dnsaddr/sg1.bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt'];
 
 
+/**
+   *  Validate service function for the KadDht
+   *  Params: key, value
+   *  Return: void
+   */
+const Validate = (key, value) => {
+    console.log("validate function activate")
+    const filehash = new TextDecoder('utf8').decode(key);
+    if(typeof filehash != "string") return console.log(`Key ${filehash} should be a string`);
+
+    const message = new TextDecoder('utf8').decode(value);
+    const values = message.split('\n');
+
+    values.forEach(user => {
+        const userInfo = user.split('/')
+
+        const {id, name, ip, port, price} = userInfo;
+
+        console.log(userInfo);
+
+        if (typeof id != "string") return console.log('Type of id in value is incorrect');
+        else if (typeof name != "string") return console.log('Type of name in value is incorrect');
+        else if (typeof ip != "string") return console.log('Type of ip in value is incorrect');
+        else if (typeof port != "number") return console.log('Type of port in value is incorrect');
+        else if (typeof price != "number") return console.log('Type of price in value is incorrect');
+    })
+
+    console.log("Passed all validations");
+    return;
+}
+
+const Select = (key, value) => {
+    return;
+}
+
+
  /**
    *  Creates a new libp2p node
    *  Params: none
    *  Return: libp2p node
    */
-const createNewNode = async () => {
-
-    // function that creates the lib2p2 node with its parameters
+ const createNewNode = async () => {
     const nodes = await createLibp2p({
         addresses: {
             listen: ['/ip4/0.0.0.0/tcp/0']
@@ -28,8 +62,11 @@ const createNewNode = async () => {
             list: bootstrapPeers
         })],
         services: {
-            kadDHT: kadDHT({
-                kBucketSize: 20
+            dht: kadDHT({
+                kBucketSize: 20,
+                validators: Validate(),
+                selectors: Select(),
+                // querySelfInterval: 5,
             }),
         },
         config: {
@@ -38,30 +75,36 @@ const createNewNode = async () => {
                 randomWalk: {
                     enabled: true,
                 }
+                
             }
         }
     });
+    nodes.services.dht.setMode("server");
 
 
-    // Add peer connect event listener to the node
+    // Add event listener to the node
     nodes.addEventListener('peer:connect', async (event) => {
         const peerInfo = event.detail;
         console.log('A Peer ID ' + peerInfo + ' Connected with us!');
         const peer = await nodes.peerRouting.findPeer(peerInfo);
-        nodes.peerStore.save(peerInfo, peer);
+        // console.log(peer);
+        await nodes.dial(peer.multiaddrs);
+        
+        // console.log(peer);
+        nodes.peerStore.patch(peerInfo, peer.multiaddrs);
+        nodes.peerStore.save(peerInfo, peer.multiaddrs);
     });
 
 
-    //adds peer discovery event listener
+    // Event listener for peer discovery
     nodes.addEventListener('peer:discovery', (event) => {
         const peerId = event.detail.id.toString();
         console.log(`Discovered: ${peerId}`);
     });
 
-    // starts the node then returns it
     await nodes.start();
     return nodes;
-} 
+}
 
 
  /**
@@ -69,13 +112,12 @@ const createNewNode = async () => {
    *  Params: node(libp2p node)
    *  Return: target(string with format "ip:port")
    */
-function getTargetFromNode(node) {
+ function getTargetFromNode(node) {
     let my_ip
     let my_port
 
     const multiaddresses = node.getMultiaddrs();
     multiaddresses.forEach(addr => {
-        // console.log(addr.toString());
         let addrs = addr.toString();
         let addr_info = addrs.split('/');
         my_ip = addr_info[2];
@@ -83,7 +125,9 @@ function getTargetFromNode(node) {
     });
 
     // let target = my_ip + ":"+my_port;
-    let target = my_ip + ":50051";
+    // let target = my_ip + ":50051";
+    // let target = "127.0.0.1:" + my_port;
+    let target = "127.0.0.1:50051"; // right now its just localhost:port
     return target;
 }
 
