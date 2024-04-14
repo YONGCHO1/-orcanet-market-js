@@ -18,6 +18,7 @@ var market_proto = grpc.loadPackageDefinition(packageDefinition).market;
 
 
 // This function registers a file and user into the servers HashMap 
+// the following registerFile and checkHolders function do not get used
 async function registerFile(call, callback) {
     console.log(call.request);
     let newUser = call.request.user;

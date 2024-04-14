@@ -157,60 +157,7 @@ async function registerFile(call, callback) {
     // putOrUpdateKeyValue(node, cid, multi);
 }
 
-// Put or update values to corresponding key
-async function putOrUpdateKeyValue(node, cid, value) {
-    const valueArr = new Uint8Array([value]);
-    const cidArr = new Uint8Array([cid]);
-
-    // await node.contentRouting.get(cidArr, async (err, existingValue) => {
-    //     // The key(CID) doesn't exist in DHT node
-    //     if (err) {
-    //         console.log('First time to register the file');
-    // node.contentRouting.put(cidArr, valueArr, (err) => {
-    //     if (err) {
-    //     console.error('Error registering value:', err);
-    //     } 
-    //     else {
-    //     console.log('Value uploaded successfully for key', cid);
-    //     }
-    // })
-    // } 
-
-    // The key(CID) exists in DHT node
-    // else {
-    // Update existing value with new value (might be needed to change to add with existing value)
-    //   const updatedValue = Array.isArray(existingValue) ? [...existingValue, ...value] : [existingValue, ...value];
-    //   await node.contentRouting.put(cidArr, updatedValue, (err) => {
-    //     if (err) {
-    //       console.error('Error updating value:', err);
-    //     } 
-    //     else {
-    //       console.log('Value updated successfully for key', cid);
-    //     }
-    //   });
-    // }
-    // });
-}
-
-// Check provider based on provided key
-function checkProvider(node, cid) {
-    node.contentRouting.get(cid, (err, existingValue) => {
-        // The key(CID) doesn't exist in DHT node
-        if (err) {
-            console.error('Error retrieving existing value:', err);
-            return;
-        }
-
-        // The key(CID) exists in DHT node
-        else {
-            return existingValue;
-        }
-    });
-}
-
-
 greet();
-
 
 function greet() {
 
@@ -220,7 +167,7 @@ function greet() {
         if (input == "start") {
             // Create new node and start it
             const node = await createNewNode();
-            
+
             let target = getTargetFromNode(node);
 
             const server = createGrpcServer(target, registerFile, checkHolders);
