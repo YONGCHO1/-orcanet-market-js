@@ -13,6 +13,7 @@ import { multiaddr } from '@multiformats/multiaddr'
 const bootstrapPeers = ['/dnsaddr/sg1.bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt'];
 
 const Validate = (key, value) => {
+    console.log("validate function activate")
     const filehash = new TextDecoder('utf8').decode(key);
     if(typeof filehash != "string") return console.log(`Key ${filehash} should be a string`);
 
@@ -23,6 +24,9 @@ const Validate = (key, value) => {
         const userInfo = user.split('/')
 
         const {id, name, ip, port, price} = userInfo;
+
+        console.log(userInfo);
+
         if (typeof id != "string") return console.log('Type of id in value is incorrect');
         else if (typeof name != "string") return console.log('Type of name in value is incorrect');
         else if (typeof ip != "string") return console.log('Type of ip in value is incorrect');
@@ -54,6 +58,7 @@ const makeNode = async () => {
                 kBucketSize: 20,
                 validators: Validate(),
                 selectors: Select(),
+                // querySelfInterval: 5,
             }),
         },
         config: {
@@ -66,6 +71,7 @@ const makeNode = async () => {
             }
         }
     });
+    nodes.services.dht.setMode("server");
 
 
     // Add event listener to the node
@@ -125,8 +131,10 @@ function getTarget(node) {
         my_port = addr_info[4];
     });
 
-    let target = my_ip + ":"+my_port;
+    // let target = my_ip + ":"+my_port;
     // let target = my_ip + ":50051";
+    // let target = "127.0.0.1:" + my_port;
+    let target = "127.0.0.1:50051";
     return target;
 }
 
@@ -140,6 +148,7 @@ function greet() {
         if (input == "start") {
             // Create new node and start it
             const node = await makeNode();
+            // node.services.dht.setMode("server");
             let target = getTarget(node);
 
             const server = new grpc.Server();
@@ -162,21 +171,29 @@ function greet() {
                 try {
                     console.log(`node Id checking: ${node.peerId}`);
 
+                    let existingUserStr;
                     // const exist = await node.contentRouting.get(keyEncoded);
                     const exist = node.services.dht.get(keyEncoded);
                     for await (const queryEvent of exist) {
                         // Handle each query event
-                        console.log('Query event:', queryEvent);
+                        // console.log('Query event:', queryEvent);
+                        existingUserStr = new TextDecoder('utf8').decode(queryEvent.value);
                     }
-                    console.log("exist value is "+ exist);
+                    console.log("exist value is "+ existingUserStr);
 
 
-                    const existingUserStr = new TextDecoder('utf8').decode(exist);
+                    // const existingUserStr = new TextDecoder('utf8').decode(exist);
                     const values = existingUserStr.split('/');
                     if (values[0] == '' || values[0] == undefined) {
                         console.log("First time to upload the file from if");
                         // await node.contentRouting.put(keyEncoded, valueEncoded);
-                        node.services.dht.put(keyEncoded, valueEncoded);
+                        const putv = node.services.dht.put(keyEncoded, valueEncoded);
+                        for await (const queryEvent of putv) {
+                            // Handle each query event
+                            // console.log('Query event from put(): ', queryEvent);
+                            const message = new TextDecoder('utf8').decode(queryEvent.value);
+                            console.log("value of each qeury is ", message);
+                        }
                     }
         
                     // Same User
@@ -199,7 +216,13 @@ function greet() {
                             const newValue = existingUserStr+"\n"+userInfo;
                             const newValueEncoded = new TextEncoder('utf8').encode(newValue);
                             // await node.contentRouting.put(keyEncoded, newValueEncoded);
-                            node.services.dht.put(keyEncoded, newValueEncoded);
+                            const putv = node.services.dht.put(keyEncoded, newValueEncoded);
+                            for await (const queryEvent of putv) {
+                                // Handle each query event
+                                // console.log('Query event from put(): ', queryEvent);
+                                const message = new TextDecoder('utf8').decode(queryEvent.value);
+                                console.log("value of each qeury is ", message);
+                            }
                         }
                     }
                     
@@ -207,17 +230,24 @@ function greet() {
                 catch (error) {
                     console.log("First time to upload the file from err");
                     // const hi = await node.contentRouting.put(keyEncoded, valueEncoded);
-                    node.services.dht.put(keyEncoded, valueEncoded);
+                    const putv = node.services.dht.put(keyEncoded, valueEncoded);
+                    for await (const queryEvent of putv) {
+                        // Handle each query event
+                        // console.log('Query event from put(): ', queryEvent);
+                        const message = new TextDecoder('utf8').decode(queryEvent.value);
+                        console.log("value of each qeury is ", message);
+                    }
                 }
-
                 node.services.dht.refreshRoutingTable();
 
+                
                 
                 const value = node.services.dht.get(keyEncoded);
                 for await (const queryEvent of value) {
                     // Handle each query event
-                    console.log('Query event:', queryEvent);
-                    console.log("record from query event is ", queryEvent.record);
+                    // console.log('Query event from get():', queryEvent);
+                    const message = new TextDecoder('utf8').decode(queryEvent.value);
+                    console.log("value of each qeury is ", message);
                 }
 
                 // node.contentRouting.refreshRoutingTable();
@@ -242,15 +272,17 @@ function greet() {
                     // const value = await node.contentRouting.get(keyEncoded);
                     // const message = new TextDecoder('utf8').decode(value);
 
+                    let message;
+
                     node.services.dht.refreshRoutingTable();
                     const value = node.services.dht.get(keyEncoded);
                     for await (const queryEvent of value) {
                         // Handle each query event
-                        console.log('Query event:', queryEvent);
-                        const message = new TextDecoder('utf8').decode(queryEvent);
+                        // console.log('Query event:', queryEvent);
+                        message = new TextDecoder('utf8').decode(queryEvent.value);
                     }
 
-                    console.log("passed node.get()");
+                    // console.log("passed node.get()");
                    
                     const values = message.split('\n');
 
